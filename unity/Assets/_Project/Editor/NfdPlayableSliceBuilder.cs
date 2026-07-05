@@ -6,6 +6,7 @@ using NightFactoryDefence;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace NightFactoryDefence.Editor
 {
@@ -32,6 +33,10 @@ namespace NightFactoryDefence.Editor
             EnsureFolder(Root, "Prefabs");
             EnsureFolder(Root + "/Prefabs", "Runtime");
             EnsureFolder(Root, "ArtDirection");
+
+            // コード生成スプライト(walker_body / player_body)を最新の定義で作り直す
+            NfdGeneratedArt.EnsureAll();
+            AssetDatabase.Refresh();
 
             litMaterial = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Materials/NfdSpriteLit.mat");
             unlitMaterial = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Materials/NfdSpriteUnlit.mat");
@@ -68,12 +73,13 @@ namespace NightFactoryDefence.Editor
 
         static NfdBullet CreateBulletPrefab()
         {
+            // 見た目の定義を変えたら反映されるよう、毎回作り直す
             var prefabPath = PrefabDir + "/Bullet.prefab";
-            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            if (existing != null) return existing.GetComponent<NfdBullet>();
 
             var go = new GameObject("Bullet");
-            CreateSpriteChild(go.transform, "visual", Sprite("circle"), Vector3.zero, new Vector2(0.24f, 0.24f), ColorFromHex("#ffe9a0"), 50);
+            // 夜でも光って見える曳光弾: グロー + 明るい弾芯(どちらも非ライティング)
+            CreateSpriteChild(go.transform, "glow", Sprite("soft_glow"), Vector3.zero, new Vector2(0.62f, 0.62f), ColorFromHex("#ffb85e", 0.55f), 49);
+            CreateSpriteChild(go.transform, "visual", Sprite("circle"), Vector3.zero, new Vector2(0.2f, 0.2f), ColorFromHex("#fff3c4", 0.999f), 50);
             var bullet = go.AddComponent<NfdBullet>();
             SetSerialized(bullet, "speed", 13f);
             SetSerialized(bullet, "damage", 24f);
@@ -88,14 +94,20 @@ namespace NightFactoryDefence.Editor
 
         static NfdEnemy CreateEnemyPrefab()
         {
+            // 見た目の定義を変えたら反映されるよう、毎回作り直す
             var prefabPath = PrefabDir + "/WalkerEnemy.prefab";
-            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            if (existing != null) return existing.GetComponent<NfdEnemy>();
 
             var go = new GameObject("WalkerEnemy");
-            CreateSpriteChild(go.transform, "body", Sprite("circle"), Vector3.zero, new Vector2(0.55f, 0.68f), ColorFromHex("#335b32"), 42);
-            CreateSpriteChild(go.transform, "left eye", Sprite("square"), new Vector3(-0.11f, 0.09f, 0f), new Vector2(0.06f, 0.04f), ColorFromHex("#ff3b30"), 43);
-            CreateSpriteChild(go.transform, "right eye", Sprite("square"), new Vector3(0.11f, 0.09f, 0f), new Vector2(0.06f, 0.04f), ColorFromHex("#ff3b30"), 43);
+            // 回転・揺れ用の "visual" の下に見た目を重ねる(NfdEnemyVisualが制御する)
+            var visual = AddGroup(go.transform, "visual");
+            CreateSpriteChild(visual, "under glow", Sprite("soft_glow"), Vector3.zero, new Vector2(1.7f, 1.7f), ColorFromHex("#6fae4f", 0.3f), 40);
+            CreateSpriteChild(visual, "shadow", Sprite("circle"), new Vector3(0.05f, -0.12f, 0f), new Vector2(0.9f, 0.68f), ColorFromHex("#030405", 0.55f), 41);
+            CreateSpriteChild(visual, "body", Sprite("walker_body"), Vector3.zero, new Vector2(1.15f, 1.15f), Color.white, 42);
+            CreateSpriteChild(visual, "eye glow left", Sprite("soft_glow"), new Vector3(-0.063f, 0.189f, 0f), new Vector2(0.26f, 0.26f), ColorFromHex("#ff3b30", 0.85f), 43);
+            CreateSpriteChild(visual, "eye glow right", Sprite("soft_glow"), new Vector3(0.063f, 0.189f, 0f), new Vector2(0.26f, 0.26f), ColorFromHex("#ff3b30", 0.85f), 43);
+            CreateSpriteChild(visual, "eye dot left", Sprite("circle"), new Vector3(-0.063f, 0.189f, 0f), new Vector2(0.05f, 0.05f), ColorFromHex("#ffb0a0", 0.999f), 44);
+            CreateSpriteChild(visual, "eye dot right", Sprite("circle"), new Vector3(0.063f, 0.189f, 0f), new Vector2(0.05f, 0.05f), ColorFromHex("#ffb0a0", 0.999f), 44);
+            go.AddComponent<NfdEnemyVisual>();
             var enemy = go.AddComponent<NfdEnemy>();
             SetSerialized(enemy, "maxHp", 42f);
             SetSerialized(enemy, "speed", 1.7f);
@@ -144,10 +156,10 @@ namespace NightFactoryDefence.Editor
         {
             DrawOre(parent, new Vector3(-10.5f, 4.5f, 0f));
             DrawOre(parent, new Vector3(10f, -4.9f, 0f));
-            DrawMachine(parent, "miner west", new Vector3(-10.5f, 4.5f, 0f), ColorFromHex("#5fb0d0"), ColorFromHex("#3fd2ff"));
-            DrawMachine(parent, "miner east", new Vector3(10f, -4.9f, 0f), ColorFromHex("#5fb0d0"), ColorFromHex("#3fd2ff"));
-            DrawMachine(parent, "furnace", new Vector3(-6.1f, -1.35f, 0f), ColorFromHex("#d0705f"), ColorFromHex("#ff6a1a"));
-            DrawMachine(parent, "ammo press", new Vector3(5.75f, 2.6f, 0f), ColorFromHex("#d0aa47"), ColorFromHex("#3fd2ff"));
+            DrawMachine(parent, "miner west", new Vector3(-10.5f, 4.5f, 0f), ColorFromHex("#5fb0d0"), ColorFromHex("#3fd2ff"), true);
+            DrawMachine(parent, "miner east", new Vector3(10f, -4.9f, 0f), ColorFromHex("#5fb0d0"), ColorFromHex("#3fd2ff"), true);
+            DrawMachine(parent, "furnace", new Vector3(-6.1f, -1.35f, 0f), ColorFromHex("#d0705f"), ColorFromHex("#ff6a1a"), false);
+            DrawMachine(parent, "ammo press", new Vector3(5.75f, 2.6f, 0f), ColorFromHex("#d0aa47"), ColorFromHex("#3fd2ff"), false);
             DrawBelt(parent, new Vector3(-9.7f, 3.8f, 0f), new Vector3(-6.7f, -0.6f, 0f), 8);
             DrawBelt(parent, new Vector3(-5.3f, -1.0f, 0f), new Vector3(4.75f, 2.1f, 0f), 13);
             DrawBelt(parent, new Vector3(9.15f, -4.3f, 0f), new Vector3(5.95f, 1.75f, 0f), 9);
@@ -164,13 +176,25 @@ namespace NightFactoryDefence.Editor
             }
         }
 
-        static void DrawMachine(Transform parent, string name, Vector3 pos, Color main, Color accent)
+        static void DrawMachine(Transform parent, string name, Vector3 pos, Color main, Color accent, bool drill)
         {
             var group = AddGroup(parent, name);
             CreateSpriteChild(group, "shadow", Sprite("square"), pos + new Vector3(0.08f, -0.08f, 0f), new Vector2(1.34f, 1.04f), ColorFromHex("#030405", 0.45f), 10);
             CreateSpriteChild(group, "base", Sprite("square"), pos, new Vector2(1.2f, 0.94f), ColorFromHex("#222b34"), 15);
             CreateSpriteChild(group, "casing", Sprite("square"), pos, new Vector2(0.92f, 0.66f), main, 16);
+            CreateSpriteChild(group, "top panel", Sprite("square"), pos + new Vector3(0f, 0.21f, 0f), new Vector2(0.74f, 0.13f), ColorFromHex("#e8ecf2", 0.42f), 17);
             CreateSpriteChild(group, "status", Sprite("circle"), pos + new Vector3(0.43f, 0.19f, 0f), new Vector2(0.16f, 0.16f), accent, 18);
+
+            if (drill)
+            {
+                CreateSpriteChild(group, "drill bit", Sprite("diamond"), pos + new Vector3(0f, -0.35f, 0f), new Vector2(0.28f, 0.55f), ColorFromHex("#c7d2df"), 19);
+                CreateSpriteChild(group, "scan glow", Sprite("soft_glow"), pos + new Vector3(0f, -0.38f, 0f), new Vector2(1.6f, 0.8f), ColorFromHex("#3fd2ff", 0.2f), 14);
+            }
+            else
+            {
+                CreateSpriteChild(group, "work slit", Sprite("square"), pos + new Vector3(0f, -0.23f, 0f), new Vector2(0.52f, 0.13f), accent, 19);
+                CreateSpriteChild(group, "heat glow", Sprite("soft_glow"), pos + new Vector3(0f, -0.15f, 0f), new Vector2(1.8f, 1.2f), accent * new Color(1f, 1f, 1f, 0.22f), 14);
+            }
         }
 
         static void DrawBelt(Transform parent, Vector3 from, Vector3 to, int segments)
@@ -192,6 +216,8 @@ namespace NightFactoryDefence.Editor
             root.transform.SetParent(parent, false);
             root.transform.position = new Vector3(0f, 0.35f, 0f);
             var core = root.AddComponent<NfdCore>();
+            CreateSpriteChild(root.transform, "hazard north", Sprite("hazard"), new Vector3(0f, 1.42f, 0f), new Vector2(2.65f, 0.26f), Color.white, 30);
+            CreateSpriteChild(root.transform, "hazard south", Sprite("hazard"), new Vector3(0f, -1.42f, 0f), new Vector2(2.65f, 0.26f), Color.white, 30);
             CreateSpriteChild(root.transform, "base", Sprite("square"), Vector3.zero, new Vector2(2.25f, 2.25f), ColorFromHex("#17120b"), 31);
             CreateSpriteChild(root.transform, "plate", Sprite("diamond"), Vector3.zero, new Vector2(1.72f, 1.72f), ColorFromHex("#2c2412"), 32);
             CreateSpriteChild(root.transform, "reactor", Sprite("diamond"), Vector3.zero, new Vector2(1.1f, 1.1f), ColorFromHex("#ffd75e"), 33);
@@ -205,8 +231,8 @@ namespace NightFactoryDefence.Editor
             for (var x = -4; x <= 4; x++)
             {
                 if (x == 0) continue;
-                DrawWall(parent, new Vector3(x, 2.6f, 0f));
-                DrawWall(parent, new Vector3(x, -2.1f, 0f));
+                DrawWall(parent, new Vector3(x, 2.6f, 0f), x % 2 == 0);
+                DrawWall(parent, new Vector3(x, -2.1f, 0f), x % 2 != 0);
             }
 
             DrawTurret(parent, new Vector3(-5.15f, 3.3f, 0f), 35f);
@@ -215,27 +241,51 @@ namespace NightFactoryDefence.Editor
             DrawTurret(parent, new Vector3(5.15f, -2.85f, 0f), -140f);
         }
 
-        static void DrawWall(Transform parent, Vector3 pos)
+        static void DrawWall(Transform parent, Vector3 pos, bool striped)
         {
+            CreateSpriteChild(parent, "wall shadow " + pos, Sprite("square"), pos + new Vector3(0.04f, -0.06f, 0f), new Vector2(0.96f, 0.78f), ColorFromHex("#030405", 0.5f), 24);
             CreateSpriteChild(parent, "wall " + pos, Sprite("square"), pos, new Vector2(0.86f, 0.68f), ColorFromHex("#8a8f98"), 25);
             CreateSpriteChild(parent, "wall face " + pos, Sprite("square"), pos + new Vector3(0f, 0.14f, 0f), new Vector2(0.7f, 0.13f), ColorFromHex("#c2c7cf", 0.55f), 26);
+            if (striped)
+            {
+                CreateSpriteChild(parent, "wall stripe " + pos, Sprite("hazard"), pos + new Vector3(0f, -0.19f, 0f), new Vector2(0.58f, 0.12f), Color.white, 27);
+            }
         }
 
         static void DrawTurret(Transform parent, Vector3 pos, float barrelAngle)
         {
             var group = AddGroup(parent, "turret " + pos);
-            CreateSpriteChild(group, "range", Sprite("circle"), pos, new Vector2(3.8f, 3.8f), ColorFromHex("#e0b341", 0.075f), 21);
+            CreateSpriteChild(group, "range", Sprite("ring"), pos, new Vector2(3.8f, 3.8f), ColorFromHex("#e0b341"), 21);
+            CreateSpriteChild(group, "foot glow", Sprite("soft_glow"), pos, new Vector2(1.65f, 1.65f), ColorFromHex("#ff8c3a", 0.18f), 22);
             CreateSpriteChild(group, "base", Sprite("circle"), pos, new Vector2(0.86f, 0.86f), ColorFromHex("#242b3a"), 36);
             CreateSpriteChild(group, "ring", Sprite("circle"), pos, new Vector2(0.62f, 0.62f), ColorFromHex("#e0b341"), 37);
             CreateSpriteChild(group, "barrel", Sprite("square"), pos + AngleOffset(barrelAngle, 0.42f), new Vector2(0.18f, 0.76f), ColorFromHex("#dce6ef"), 38, barrelAngle - 90f);
+            CreateSpriteChild(group, "optic", Sprite("circle"), pos + AngleOffset(barrelAngle, 0.18f), new Vector2(0.15f, 0.15f), ColorFromHex("#3fd2ff"), 39);
         }
 
         static void CreatePlayer(NfdBullet bulletPrefab, Camera camera)
         {
             var player = new GameObject("Player");
             player.transform.position = new Vector3(0f, -3.75f, 0f);
-            CreateSpriteChild(player.transform, "body", Sprite("circle"), Vector3.zero, new Vector2(0.62f, 0.62f), ColorFromHex("#7fd0ff"), 60);
-            var muzzle = CreateSpriteChild(player.transform, "muzzle", Sprite("square"), new Vector3(0f, 0.42f, 0f), new Vector2(0.13f, 0.42f), ColorFromHex("#e6e8ee"), 61);
+            // 味方=シアンの光。足元グロー+影+装備を着た本体+発光バイザー
+            CreateSpriteChild(player.transform, "under glow", Sprite("soft_glow"), Vector3.zero, new Vector2(1.5f, 1.5f), ColorFromHex("#3fd2ff", 0.28f), 58);
+            CreateSpriteChild(player.transform, "shadow", Sprite("circle"), new Vector3(0.05f, -0.1f, 0f), new Vector2(0.75f, 0.55f), ColorFromHex("#030405", 0.55f), 59);
+            CreateSpriteChild(player.transform, "body", Sprite("player_body"), Vector3.zero, new Vector2(1.05f, 1.05f), Color.white, 60);
+            CreateSpriteChild(player.transform, "visor glow", Sprite("soft_glow"), new Vector3(0f, 0.1f, 0f), new Vector2(0.28f, 0.28f), ColorFromHex("#3fd2ff", 0.7f), 62);
+            var muzzle = CreateSpriteChild(player.transform, "muzzle", Sprite("square"), new Vector3(0.02f, 0.46f, 0f), new Vector2(0.1f, 0.4f), ColorFromHex("#dce6ef"), 61);
+
+            // ヘッドランプ: プレイヤーに追従する光。夜でも自分と足元が見える
+            var lamp = new GameObject("player headlamp");
+            lamp.transform.SetParent(player.transform, false);
+            lamp.transform.localPosition = new Vector3(0f, 0.1f, 0f);
+            var lampLight = lamp.AddComponent<Light2D>();
+            lampLight.lightType = Light2D.LightType.Point;
+            lampLight.color = ColorFromHex("#bfe9ff");
+            lampLight.intensity = 1.2f;
+            lampLight.pointLightOuterRadius = 3.8f;
+            lampLight.pointLightInnerRadius = 0.6f;
+            lampLight.falloffIntensity = 0.85f;
+
             var controller = player.AddComponent<NfdPlayerController>();
             SetSerialized(controller, "bulletPrefab", bulletPrefab);
             SetSerialized(controller, "muzzle", muzzle.transform);
@@ -268,23 +318,26 @@ namespace NightFactoryDefence.Editor
 
         static void CreateLights()
         {
-            var lightType = Type.GetType("UnityEngine.Rendering.Universal.Light2D, Unity.RenderPipelines.Universal.Runtime");
-            if (lightType == null) return;
-
-            AddLight2D("Global ambience", lightType, Vector3.zero, ColorFromHex("#8fb7ff"), 0.24f, 0f, true);
-            AddLight2D("Core reactor light", lightType, new Vector3(0f, 0.35f, -1f), ColorFromHex("#3fd2ff"), 1.35f, 6.5f, false);
-            AddLight2D("Furnace work light", lightType, new Vector3(-6.1f, -1.35f, -1f), ColorFromHex("#ff6a1a"), 0.95f, 4.2f, false);
+            // 夜の全体光(これが暗さの基準)+ 施設ごとの色付きポイントライト
+            AddLight2D("Global ambience", Vector3.zero, ColorFromHex("#8fb7ff"), 0.5f, 0f, true);
+            AddLight2D("Core reactor light", new Vector3(0f, 0.35f, 0f), ColorFromHex("#3fd2ff"), 1.1f, 7f, false);
+            AddLight2D("Furnace work light", new Vector3(-6.1f, -1.35f, 0f), ColorFromHex("#ff6a1a"), 0.65f, 4.2f, false);
+            AddLight2D("Ammo press light", new Vector3(5.75f, 2.6f, 0f), ColorFromHex("#3fd2ff"), 0.55f, 3.6f, false);
         }
 
-        static void AddLight2D(string name, Type type, Vector3 pos, Color color, float intensity, float radius, bool global)
+        static void AddLight2D(string name, Vector3 pos, Color color, float intensity, float radius, bool global)
         {
             var go = new GameObject(name);
             go.transform.position = pos;
-            var light = go.AddComponent(type);
-            SetMember(light, "lightType", global ? "Global" : "Point");
-            SetMember(light, "color", color);
-            SetMember(light, "intensity", intensity);
-            if (!global) SetMember(light, "pointLightOuterRadius", radius);
+            var light = go.AddComponent<Light2D>();
+            light.lightType = global ? Light2D.LightType.Global : Light2D.LightType.Point;
+            light.color = color;
+            light.intensity = intensity;
+            if (!global)
+            {
+                light.pointLightOuterRadius = radius;
+                light.falloffIntensity = 0.85f; // 縁をなめらかに減衰させる
+            }
         }
 
         static GameObject CreateSpriteChild(Transform parent, string name, Sprite sprite, Vector3 localPosition, Vector2 scale, Color color, int order, float rotationZ = 0f)
@@ -298,8 +351,9 @@ namespace NightFactoryDefence.Editor
             renderer.sprite = sprite;
             renderer.color = color;
             renderer.sortingOrder = order;
-            if (litMaterial != null && color.a >= 1f) renderer.material = litMaterial;
-            else if (unlitMaterial != null) renderer.material = unlitMaterial;
+            // エディタモードでは .material だとアセットが割り当たらないため .sharedMaterial を使う
+            if (litMaterial != null && color.a >= 1f) renderer.sharedMaterial = litMaterial;
+            else if (unlitMaterial != null) renderer.sharedMaterial = unlitMaterial;
             return go;
         }
 

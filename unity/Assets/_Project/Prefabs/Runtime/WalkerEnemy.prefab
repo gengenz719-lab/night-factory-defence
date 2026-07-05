@@ -415,8 +415,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6549119374395440203}
-  - component: {fileID: 2992659763842525341}
   - component: {fileID: 2388576750328169693}
+  - component: {fileID: 2992659763842525341}
   m_Layer: 0
   m_Name: WalkerEnemy
   m_TagString: Untagged
@@ -440,22 +440,6 @@ Transform:
   - {fileID: 1541286986745923972}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2992659763842525341
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8228821211712520686}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a89ed5f5ea82ee2409cbe8abb73a69d8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdEnemy
-  maxHp: 42
-  speed: 1.7
-  contactDamagePerSecond: 18
-  contactRange: 0.78
 --- !u!114 &2388576750328169693
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -473,6 +457,22 @@ MonoBehaviour:
   wobbleSpeed: 7.5
   turnSpeed: 10
   flashTime: 0.09
+--- !u!114 &2992659763842525341
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8228821211712520686}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a89ed5f5ea82ee2409cbe8abb73a69d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdEnemy
+  maxHp: 42
+  speed: 1.7
+  contactDamagePerSecond: 18
+  contactRange: 0.78
 --- !u!1 &8375264258355080131
 GameObject:
   m_ObjectHideFlags: 0

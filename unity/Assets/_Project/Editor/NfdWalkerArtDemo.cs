@@ -216,7 +216,7 @@ namespace NightFactoryDefence.Editor
             renderer.sprite = sprite;
             renderer.color = color;
             renderer.sortingOrder = order;
-            renderer.material = color.a < 1f ? spriteUnlit : spriteLit;
+            renderer.sharedMaterial = color.a < 1f ? spriteUnlit : spriteLit;
             return go;
         }
 
@@ -271,7 +271,7 @@ namespace NightFactoryDefence.Editor
 
         static void AddLight(Transform parent, string name, Vector3 position, Color color, float intensity, float outerRadius, float innerRadius, bool global = false)
         {
-            var lightType = Type.GetType("UnityEngine.Rendering.Universal.Light2D, Unity.RenderPipelines.Universal.Runtime");
+            var lightType = Type.GetType("UnityEngine.Rendering.Universal.Light2D, Unity.RenderPipelines.Universal.2D.Runtime");
             if (lightType == null) return;
 
             var go = new GameObject(name);

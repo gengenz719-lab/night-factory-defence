@@ -339,7 +339,7 @@ namespace NightFactoryDefence.Editor
 
         static void AddLight(Transform parent, string name, Vector3 position, Color color, float intensity, float outerRadius, float innerRadius, bool global = false)
         {
-            var lightType = Type.GetType("UnityEngine.Rendering.Universal.Light2D, Unity.RenderPipelines.Universal.Runtime");
+            var lightType = Type.GetType("UnityEngine.Rendering.Universal.Light2D, Unity.RenderPipelines.Universal.2D.Runtime");
             if (lightType == null) return;
 
             var go = new GameObject(name);
@@ -374,7 +374,7 @@ namespace NightFactoryDefence.Editor
             renderer.sprite = sprite;
             renderer.color = color;
             renderer.sortingOrder = order;
-            renderer.material = color.a < 1f ? spriteUnlit : spriteLit;
+            renderer.sharedMaterial = color.a < 1f ? spriteUnlit : spriteLit;
             return go;
         }
 
@@ -397,7 +397,7 @@ namespace NightFactoryDefence.Editor
         static void CreateMaterials()
         {
             var litShader = Shader.Find("Universal Render Pipeline/2D/Sprite-Lit-Default") ?? Shader.Find("Sprites/Default");
-            var unlitShader = Shader.Find("Sprites/Default");
+            var unlitShader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default") ?? Shader.Find("Sprites/Default");
 
             spriteLit = AssetDatabase.LoadAssetAtPath<Material>(LitMaterialPath);
             if (spriteLit == null)
