@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Night Factory Defence - Prototype 01</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="game-wrap">
+  <canvas id="game" width="1200" height="680"></canvas>
+
+  <!-- タイトル画面 -->
+  <div id="titleScreen" class="overlay">
+    <h1>NIGHT FACTORY DEFENCE</h1>
+    <p class="subtitle">Prototype 01 — 昼に工場を組み、夜にゾンビから拠点コアを守れ</p>
+    <div class="howto">
+      <div>移動: <b>WASD</b> / 射撃: <b>左クリック</b>(弾薬を消費)</div>
+      <div>建設: <b>1〜4キー</b>で選択 → 左クリックで設置 / <b>右クリック</b>で撤去(50%返金)</div>
+      <div>昼スキップ: <b>Space</b> / ポーズ: <b>P</b></div>
+      <div class="tips">採掘機は鉱床(青い点のタイル)の上にだけ置ける。鉄→弾薬のラインを作ってタレットに供給しよう。</div>
+    </div>
+    <button id="startBtn" class="big-btn">ゲーム開始</button>
+  </div>
+
+  <!-- レリック選択画面 -->
+  <div id="relicScreen" class="overlay hidden">
+    <h2 id="relicTitle">Wave クリア! レリックを1つ選べ</h2>
+    <div id="relicCards"></div>
+  </div>
+
+  <!-- ゲームオーバー / 勝利画面 -->
+  <div id="endScreen" class="overlay hidden">
+    <h1 id="endTitle"></h1>
+    <p id="endDetail"></p>
+    <button id="retryBtn" class="big-btn">もう一度</button>
+  </div>
+
+  <!-- 建設ツールバー -->
+  <div id="toolbar" class="hidden"></div>
+</div>
+
+<!-- 読み込み順が重要(依存関係の順) -->
+<script src="js/utils.js"></script>
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/input.js"></script>
+<script src="js/buildings.js"></script>
+<script src="js/player.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/relics.js"></script>
+<script src="js/waves.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

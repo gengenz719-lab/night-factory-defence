@@ -1,0 +1,11 @@
+# OSが勝手に作るファイル
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# エディタ設定(個人ごとに違うもの)
+.vscode/
+.idea/
+
+# 将来 node を使う場合
+node_modules/
