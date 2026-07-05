@@ -206,6 +206,32 @@ namespace NightFactoryDefence
             State.Kills++;
         }
 
+        // --- 資源(鉄・弾薬) ---
+
+        public bool TrySpendIron(int amount)
+        {
+            if (amount < 0 || State.Iron < amount) return false;
+            State.Iron -= amount;
+            return true;
+        }
+
+        public void AddIron(int amount)
+        {
+            if (amount > 0) State.Iron += amount;
+        }
+
+        public bool TrySpendAmmo(int amount)
+        {
+            if (amount < 0 || State.Ammo < amount) return false;
+            State.Ammo -= amount;
+            return true;
+        }
+
+        public void AddAmmo(int amount)
+        {
+            if (amount > 0) State.Ammo += amount;
+        }
+
         public void DamageCore(float amount)
         {
             if (amount <= 0f || State.CoreHp <= 0f) return;

@@ -2,18 +2,21 @@ using UnityEngine;
 
 namespace NightFactoryDefence
 {
+    // 弾。まっすぐ飛んで最寄りの敵に当たると消える。
+    // ダメージと速度は発射元(プレイヤー/タレット)が Fire で渡す。
     public sealed class NfdBullet : MonoBehaviour
     {
-        [SerializeField] float speed = 11f;
-        [SerializeField] float damage = 20f;
         [SerializeField] float lifeSeconds = 1.4f;
         [SerializeField] float hitRadius = 0.34f;
 
         Vector3 velocity;
+        float damage = 15f;
 
-        public void Fire(Vector3 direction)
+        // dir=方向, dmg=ダメージ, speed=弾速(unit/s)
+        public void Fire(Vector3 direction, float dmg, float speed)
         {
             velocity = direction.normalized * speed;
+            damage = dmg;
         }
 
         void Update()

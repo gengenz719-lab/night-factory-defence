@@ -138,8 +138,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31a70cfec3d5ccb4f83178210a1d9463, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdBullet
-  speed: 13
-  damage: 24
   lifeSeconds: 1.6
   hitRadius: 0.52
 --- !u!1 &8212041587649436098

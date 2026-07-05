@@ -16,7 +16,50 @@ namespace NightFactoryDefence
             DrawTopLeft(state);
             DrawTopCenter(state);
             DrawBottomLeft(state);
+            DrawBuildBar();
             DrawCenterMessage(state);
+        }
+
+        // 下中央: 建設ホットバー([1]〜[4]・コスト・選択中ハイライト・鉄不足はグレー)
+        static void DrawBuildBar()
+        {
+            var manager = NfdGameManager.Instance;
+            var controller = manager != null ? Object.FindAnyObjectByType<NfdBuildController>() : null;
+            if (controller == null || controller.Selected == null) return;
+            var config = manager.Config;
+            if (config == null || config.buildings == null) return;
+
+            var count = config.buildings.Length;
+            const float slotW = 116f, slotH = 58f, gap = 8f;
+            var totalW = count * slotW + (count - 1) * gap;
+            var x0 = (Screen.width - totalW) * 0.5f;
+            var y = Screen.height - slotH - 12f;
+
+            var name = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
+            var cost = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.LowerRight };
+
+            for (var i = 0; i < count; i++)
+            {
+                var b = config.buildings[i];
+                var rect = new Rect(x0 + i * (slotW + gap), y, slotW, slotH);
+                var selected = i == controller.SelectedIndex;
+                var affordable = manager.State.Iron >= b.cost;
+
+                // 背景
+                var prev = GUI.color;
+                GUI.color = selected ? new Color(0.25f, 0.7f, 0.9f, 0.85f) : new Color(0f, 0f, 0f, 0.6f);
+                GUI.DrawTexture(rect, Texture2D.whiteTexture);
+                GUI.color = prev;
+
+                name.normal.textColor = affordable ? Color.white : new Color(0.5f, 0.5f, 0.5f);
+                GUI.Label(new Rect(rect.x + 8, rect.y + 6, rect.width - 12, 20), $"[{i + 1}] {b.displayName}", name);
+                cost.normal.textColor = affordable ? new Color(0.9f, 0.85f, 0.5f) : new Color(0.6f, 0.4f, 0.4f);
+                GUI.Label(new Rect(rect.x + 6, rect.y + rect.height - 22, rect.width - 12, 18), $"鉄 {b.cost}", cost);
+            }
+
+            // 操作ヒント
+            var hint = new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.7f, 0.75f, 0.8f) } };
+            GUI.Label(new Rect(x0, y - 20, totalW, 18), "左クリック=設置 / 右クリック=撤去(50%返金)", hint);
         }
 
         // 左上: フェーズ・残り時間・コアHPバー

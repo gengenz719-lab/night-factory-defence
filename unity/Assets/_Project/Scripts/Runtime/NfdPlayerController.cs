@@ -5,18 +5,22 @@ namespace NightFactoryDefence
 {
     public sealed class NfdPlayerController : MonoBehaviour
     {
-        [SerializeField] float moveSpeed = 5.2f;
-        [SerializeField] float fireRate = 5.5f;
+        [SerializeField] NfdGameConfig config;
         [SerializeField] NfdBullet bulletPrefab;
         [SerializeField] Transform muzzle;
         [SerializeField] Camera worldCamera;
 
         float fireCooldown;
 
+        NfdPlayerData Data => config != null ? config.player : null;
+
         void Update()
         {
             var game = NfdGameManager.Instance;
             if (game != null && game.IsRunEnded) return;
+
+            var data = Data;
+            var moveSpeed = data != null ? data.speed : 4.5f;
 
             var move = ReadMove();
             transform.position += new Vector3(move.x, move.y, 0f) * moveSpeed * Time.deltaTime;
@@ -63,9 +67,18 @@ namespace NightFactoryDefence
         {
             if (bulletPrefab == null || muzzle == null) return;
 
+            var data = Data;
+            var fireRate = data != null ? data.fireRate : 4f;
             fireCooldown = 1f / fireRate;
+
+            // 弾薬を1消費できたときだけ撃つ(弾薬0では撃てない=工場の動機)
+            var manager = NfdGameManager.Instance;
+            if (manager != null && !manager.TrySpendAmmo(1)) return;
+
+            var dmg = data != null ? data.dmg : 15f;
+            var speed = data != null ? data.bulletSpeed : 13f;
             var bullet = Instantiate(bulletPrefab, muzzle.position, Quaternion.identity);
-            bullet.Fire(direction.sqrMagnitude > 0.0001f ? direction : transform.up);
+            bullet.Fire(direction.sqrMagnitude > 0.0001f ? direction : transform.up, dmg, speed);
         }
 
         static Vector3 ClampToArena(Vector3 position)

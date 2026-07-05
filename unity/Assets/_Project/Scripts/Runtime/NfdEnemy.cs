@@ -63,7 +63,21 @@ namespace NightFactoryDefence
                 return;
             }
 
-            transform.position += toCore.normalized * speed * Time.deltaTime;
+            var dir = toCore.normalized;
+
+            // 進路の少し先に建物があれば、そこで立ち止まって攻撃する
+            var lookAhead = transform.position + dir * contactRange;
+            if (NfdBuildGrid.Instance != null && NfdBuildGrid.WorldToTile(lookAhead, out var tx, out var ty))
+            {
+                var building = NfdBuildGrid.Instance.GetBuilding(tx, ty);
+                if (building != null && building.IsAlive)
+                {
+                    building.TakeDamage(contactDps * Time.deltaTime);
+                    return;
+                }
+            }
+
+            transform.position += dir * speed * Time.deltaTime;
         }
 
         public void TakeDamage(float damage)

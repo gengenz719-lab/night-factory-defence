@@ -52,14 +52,18 @@ namespace NightFactoryDefence.Editor
             var props = AddGroup(world, "factory props");
             var defences = AddGroup(world, "core and defences");
 
+            // 鉱床の位置(グリッドの鉱床タイルと視覚を一致させる)
+            var oreCenters = new[] { new Vector3(-10.5f, 4.5f, 0f), new Vector3(10f, -4.9f, 0f) };
+
             DrawGround(ground);
             DrawFence(props);
-            DrawOreAndMachines(props);
+            foreach (var c in oreCenters) DrawOre(props, c);
             var core = CreateCore(defences);
-            CreateWallsAndTurrets(defences);
+            // 壁・タレット・工場はプレイヤーが建てる(装飾は置かない)
             var camera = CreateCamera();
             CreatePlayer(bulletPrefab, camera);
             CreateGameController(core, enemyPrefab);
+            CreateBuildSystem(camera, bulletPrefab, oreCenters, core.transform.position);
             CreateLights();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -81,8 +85,7 @@ namespace NightFactoryDefence.Editor
             CreateSpriteChild(go.transform, "glow", Sprite("soft_glow"), Vector3.zero, new Vector2(0.62f, 0.62f), ColorFromHex("#ffb85e", 0.55f), 49);
             CreateSpriteChild(go.transform, "visual", Sprite("circle"), Vector3.zero, new Vector2(0.2f, 0.2f), ColorFromHex("#fff3c4", 0.999f), 50);
             var bullet = go.AddComponent<NfdBullet>();
-            SetSerialized(bullet, "speed", 13f);
-            SetSerialized(bullet, "damage", 24f);
+            // ダメージと速度は発射時に渡す。ここは寿命と当たり半径だけ
             SetSerialized(bullet, "lifeSeconds", 1.6f);
             SetSerialized(bullet, "hitRadius", 0.52f);
             PrefabUtility.SaveAsPrefabAsset(go, prefabPath);
@@ -283,9 +286,93 @@ namespace NightFactoryDefence.Editor
             lampLight.falloffIntensity = 0.85f;
 
             var controller = player.AddComponent<NfdPlayerController>();
+            SetSerialized(controller, "config", LoadConfig());
             SetSerialized(controller, "bulletPrefab", bulletPrefab);
             SetSerialized(controller, "muzzle", muzzle.transform);
             SetSerialized(controller, "worldCamera", camera);
+        }
+
+        static NfdGameConfig LoadConfig()
+        {
+            var config = AssetDatabase.LoadAssetAtPath<NfdGameConfig>("Assets/_Project/Config/GameConfig.asset");
+            if (config == null) Debug.LogWarning("GameConfig.asset が無い。先に 'Generate Config Assets' を実行してください。");
+            return config;
+        }
+
+        // --- 建設システム(グリッド + コントローラ + 建物プレハブ) ---
+
+        static void CreateBuildSystem(Camera camera, NfdBullet bulletPrefab, Vector3[] oreCenters, Vector3 corePos)
+        {
+            var config = LoadConfig();
+
+            // 建物プレハブ4種(config.buildings の並び: wall/turret/miner/smelter)
+            var wallPrefab = CreateBuildingPrefab(NfdBuildingKind.Wall, bulletPrefab);
+            var turretPrefab = CreateBuildingPrefab(NfdBuildingKind.Turret, bulletPrefab);
+            var minerPrefab = CreateBuildingPrefab(NfdBuildingKind.Miner, bulletPrefab);
+            var smelterPrefab = CreateBuildingPrefab(NfdBuildingKind.Smelter, bulletPrefab);
+
+            // グリッド(鉱床・コアのタイルを登録)
+            var gridGo = new GameObject("BuildGrid");
+            var grid = gridGo.AddComponent<NfdBuildGrid>();
+            var ore2d = oreCenters.Select(o => new Vector2(o.x, o.y)).ToArray();
+            SetSerializedVector2Array(grid, "oreCenters", ore2d);
+            SetSerializedVector2(grid, "coreCenter", new Vector2(corePos.x, corePos.y));
+
+            // コントローラ(入力・ゴースト・設置)
+            var ctrlGo = new GameObject("BuildController");
+            var ctrl = ctrlGo.AddComponent<NfdBuildController>();
+            SetSerialized(ctrl, "config", config);
+            SetSerialized(ctrl, "worldCamera", camera);
+            SetSerialized(ctrl, "ghostSprite", Sprite("square"));
+            SetSerializedObjectArray(ctrl, "prefabs", new UnityEngine.Object[] { wallPrefab, turretPrefab, minerPrefab, smelterPrefab });
+        }
+
+        static GameObject CreateBuildingPrefab(NfdBuildingKind kind, NfdBullet bulletPrefab)
+        {
+            var path = PrefabDir + "/Building_" + kind + ".prefab";
+            var go = new GameObject("Building_" + kind);
+            Transform barrelPivot = null;
+
+            switch (kind)
+            {
+                case NfdBuildingKind.Wall:
+                    DrawWall(go.transform, Vector3.zero, true);
+                    break;
+                case NfdBuildingKind.Turret:
+                    barrelPivot = BuildTurretVisual(go.transform);
+                    break;
+                case NfdBuildingKind.Miner:
+                    DrawMachine(go.transform, "miner", Vector3.zero, ColorFromHex("#5fb0d0"), ColorFromHex("#3fd2ff"), true);
+                    break;
+                case NfdBuildingKind.Smelter:
+                    DrawMachine(go.transform, "smelter", Vector3.zero, ColorFromHex("#d0705f"), ColorFromHex("#ff6a1a"), false);
+                    break;
+            }
+
+            go.AddComponent<NfdBuilding>();
+            if (kind == NfdBuildingKind.Turret)
+            {
+                var turret = go.AddComponent<NfdTurret>();
+                SetSerialized(turret, "bulletPrefab", bulletPrefab);
+                SetSerialized(turret, "barrel", barrelPivot);
+            }
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            UnityEngine.Object.DestroyImmediate(go);
+            return prefab;
+        }
+
+        // タレットの見た目。砲身は中心に置いたピボットの子にして、ピボットごと回すと中心で旋回する。
+        static Transform BuildTurretVisual(Transform root)
+        {
+            CreateSpriteChild(root, "foot glow", Sprite("soft_glow"), Vector3.zero, new Vector2(1.5f, 1.5f), ColorFromHex("#ff8c3a", 0.18f), 22);
+            CreateSpriteChild(root, "base", Sprite("circle"), Vector3.zero, new Vector2(0.86f, 0.86f), ColorFromHex("#242b3a"), 36);
+            CreateSpriteChild(root, "ring", Sprite("circle"), Vector3.zero, new Vector2(0.62f, 0.62f), ColorFromHex("#e0b341"), 37);
+            var pivot = AddGroup(root, "barrel");
+            CreateSpriteChild(pivot, "barrel sprite", Sprite("square"), new Vector3(0f, 0.42f, 0f), new Vector2(0.18f, 0.76f), ColorFromHex("#dce6ef"), 38);
+            CreateSpriteChild(pivot, "optic", Sprite("circle"), new Vector3(0f, 0.18f, 0f), new Vector2(0.15f, 0.15f), ColorFromHex("#3fd2ff"), 39);
+            return pivot;
         }
 
         static void CreateGameController(NfdCore core, NfdEnemy enemyPrefab)
@@ -320,11 +407,9 @@ namespace NightFactoryDefence.Editor
 
         static void CreateLights()
         {
-            // 夜の全体光(これが暗さの基準)+ 施設ごとの色付きポイントライト
+            // 夜の全体光(これが暗さの基準)+ コアの光。建物の光は設置物側で持つ
             AddLight2D("Global ambience", Vector3.zero, ColorFromHex("#8fb7ff"), 0.5f, 0f, true);
             AddLight2D("Core reactor light", new Vector3(0f, 0.35f, 0f), ColorFromHex("#3fd2ff"), 1.1f, 7f, false);
-            AddLight2D("Furnace work light", new Vector3(-6.1f, -1.35f, 0f), ColorFromHex("#ff6a1a"), 0.65f, 4.2f, false);
-            AddLight2D("Ammo press light", new Vector3(5.75f, 2.6f, 0f), ColorFromHex("#3fd2ff"), 0.55f, 3.6f, false);
         }
 
         static void AddLight2D(string name, Vector3 pos, Color color, float intensity, float radius, bool global)
@@ -409,6 +494,38 @@ namespace NightFactoryDefence.Editor
             {
                 field.SetValue(target, value);
             }
+            EditorUtility.SetDirty(target);
+        }
+
+        static void SetSerializedVector2(UnityEngine.Object target, string propertyName, Vector2 value)
+        {
+            var so = new SerializedObject(target);
+            var p = so.FindProperty(propertyName);
+            if (p == null) throw new MissingFieldException(target.GetType().Name, propertyName);
+            p.vector2Value = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
+        static void SetSerializedVector2Array(UnityEngine.Object target, string propertyName, Vector2[] values)
+        {
+            var so = new SerializedObject(target);
+            var p = so.FindProperty(propertyName);
+            if (p == null) throw new MissingFieldException(target.GetType().Name, propertyName);
+            p.arraySize = values.Length;
+            for (var i = 0; i < values.Length; i++) p.GetArrayElementAtIndex(i).vector2Value = values[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+        }
+
+        static void SetSerializedObjectArray(UnityEngine.Object target, string propertyName, UnityEngine.Object[] values)
+        {
+            var so = new SerializedObject(target);
+            var p = so.FindProperty(propertyName);
+            if (p == null) throw new MissingFieldException(target.GetType().Name, propertyName);
+            p.arraySize = values.Length;
+            for (var i = 0; i < values.Length; i++) p.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(target);
         }
 
