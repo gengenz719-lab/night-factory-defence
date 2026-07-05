@@ -1,13 +1,13 @@
 # Night Factory Defence
 
 2〜4人で拠点を作り、昼に小さな生産ラインを組み、夜にゾンビウェーブを防衛する軽量ローグライト工場ゲーム。
-Steamでの販売を目指す共同開発プロジェクト。 by **Kagyo games**
+Steamでの販売を目指す共同開発プロジェクト。
 
 ## 🎮 今すぐ遊ぶ(インストール不要・ブラウザで開くだけ)
 
 **▶ https://gengenz719-lab.github.io/night-factory-defence/**
 
-このリンクを開くだけで遊べます。GitHubアカウントもダウンロードも不要。友人にはこのリンクを渡してください。
+このリンクを開くだけで遊べます。GitHubアカウントもダウンロードも不要。パートナーにはこのリンクを渡してください。
 
 ### ローカルで遊ぶ場合
 
@@ -65,6 +65,6 @@ CLAUDE.md    … AI(Claude Code / Cursor等)向けの開発ルール
 | [docs/02_not-todo.md](docs/02_not-todo.md) | やらないことリスト |
 | [docs/03_roadmap.md](docs/03_roadmap.md) | 開発ロードマップと週次クエスト |
 | [docs/04_engine-decision.md](docs/04_engine-decision.md) | 技術選定の理由とエンジン移行計画 |
-| [docs/05_team-onboarding.md](docs/05_team-onboarding.md) | 友人向け参加ガイド |
+| [docs/05_team-onboarding.md](docs/05_team-onboarding.md) | パートナー向け参加ガイド |
 | [docs/06_ai-collab-guide.md](docs/06_ai-collab-guide.md) | AIバイブコーディングの回し方 |
 | [docs/07_ideas.md](docs/07_ideas.md) | レリック案・敵案のストック |
