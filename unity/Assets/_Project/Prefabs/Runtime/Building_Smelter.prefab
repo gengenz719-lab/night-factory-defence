@@ -286,6 +286,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2026960471037262822}
   - component: {fileID: 7092942882543186105}
+  - component: {fileID: 716839948389960051}
   m_Layer: 0
   m_Name: Building_Smelter
   m_TagString: Untagged
@@ -321,6 +322,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a49111577cf9324e9bcef2003e7eb6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdBuilding
+--- !u!114 &716839948389960051
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2750782305854409133}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4891e83139479f74ca803666374398bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdSmelter
 --- !u!1 &3100136773765684085
 GameObject:
   m_ObjectHideFlags: 0

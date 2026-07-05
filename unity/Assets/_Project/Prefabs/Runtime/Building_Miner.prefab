@@ -324,6 +324,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4430294311134982417}
   - component: {fileID: 1274390676419827486}
+  - component: {fileID: 8086121931590065049}
   m_Layer: 0
   m_Name: Building_Miner
   m_TagString: Untagged
@@ -359,6 +360,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a49111577cf9324e9bcef2003e7eb6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdBuilding
+--- !u!114 &8086121931590065049
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2442989880878329661}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c23c9f1877694644dbae83bdf74d1222, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdMiner
 --- !u!1 &3662058858782766657
 GameObject:
   m_ObjectHideFlags: 0

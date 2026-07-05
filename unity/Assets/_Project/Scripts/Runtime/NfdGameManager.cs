@@ -28,6 +28,9 @@ namespace NightFactoryDefence
         public NfdGameState State { get; } = new NfdGameState();
         public NfdGameConfig Config => config;
 
+        // レリックによる補正(Phase Dで設定される)。加工炉の弾薬ボーナスなど。
+        public int SmelterBonus { get; set; }
+
         readonly List<NfdEnemy> enemies = new();
         readonly List<NfdEnemyData> spawnQueue = new();
         float spawnTimer;

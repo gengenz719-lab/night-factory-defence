@@ -356,6 +356,14 @@ namespace NightFactoryDefence.Editor
                 SetSerialized(turret, "bulletPrefab", bulletPrefab);
                 SetSerialized(turret, "barrel", barrelPivot);
             }
+            else if (kind == NfdBuildingKind.Miner)
+            {
+                go.AddComponent<NfdMiner>();
+            }
+            else if (kind == NfdBuildingKind.Smelter)
+            {
+                go.AddComponent<NfdSmelter>();
+            }
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
