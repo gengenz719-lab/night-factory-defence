@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -8,28 +9,30 @@ namespace NightFactoryDefence
     // ゲーム進行の「頭脳」。状態(NfdGameState)を所有し、状態を変える唯一の場所。
     //
     // 担当すること:
-    // - 敵のスポーン
+    // - 昼夜フェーズの進行(昼→夜→クリアで次の昼→…→勝敗)
+    // - Wave予算からの敵編成と、敵のスポーン
     // - 敵の名簿(登録/解除)と最寄り敵の検索(弾の当たり判定用)
     // - 撃破カウント・コアダメージ・勝敗判定
     //
-    // 担当しないこと:
-    // - 描画(HUDは NfdSliceHud が State を読むだけ)
+    // 担当しないこと: 描画(HUDは NfdSliceHud が State を読むだけ)
     //
-    // プロトタイプの main.js + waves.js の一部に相当する。
+    // プロトタイプの main.js + waves.js + enemies.js(編成部分)に相当する。
     public sealed class NfdGameManager : MonoBehaviour
     {
+        [SerializeField] NfdGameConfig config;
         [SerializeField] NfdCore core;
-        [SerializeField] NfdEnemy enemyPrefab;
-        [SerializeField] int enemyCount = 24;
-        [SerializeField] float spawnInterval = 0.8f;
+        [SerializeField] NfdEnemy enemyPrefab; // 1種のプレハブを敵データで作り分ける
 
         public static NfdGameManager Instance { get; private set; }
 
-        // 状態は外から「読むだけ」。変更はこのクラスのメソッド経由でのみ行う。
         public NfdGameState State { get; } = new NfdGameState();
+        public NfdGameConfig Config => config;
 
         readonly List<NfdEnemy> enemies = new();
+        readonly List<NfdEnemyData> spawnQueue = new();
         float spawnTimer;
+
+        NfdWaveData Wave => config.wave;
 
         public bool IsRunEnded => State.IsRunEnded;
 
@@ -37,11 +40,14 @@ namespace NightFactoryDefence
         {
             Instance = this;
 
-            // コアの設定値から初期HPを状態にセットする
             State.CoreMaxHp = core != null ? core.MaxHp : 0f;
             State.CoreHp = State.CoreMaxHp;
-            State.EnemiesToSpawn = enemyCount;
-            State.EnemiesAlive = 0;
+            State.Iron = Wave.startIron;
+            State.Ammo = Wave.startAmmo;
+            State.WaveNumber = 1;
+            State.TotalWaves = Wave.TotalWaves;
+            State.Phase = NfdPhase.Day;
+            State.PhaseTimer = Wave.dayTime;
         }
 
         void OnDestroy()
@@ -58,39 +64,141 @@ namespace NightFactoryDefence
                 return;
             }
 
-            if (!State.WaveRunning)
+            if (State.IsRunEnded) return;
+
+            if (State.Phase == NfdPhase.Day) UpdateDay(keyboard);
+            else UpdateNight();
+        }
+
+        // --- 昼(建設) ---
+
+        void UpdateDay(Keyboard keyboard)
+        {
+            State.PhaseTimer -= Time.deltaTime;
+
+            var skip = keyboard != null && keyboard.spaceKey.wasPressedThisFrame;
+            if (skip || State.PhaseTimer <= 0f)
             {
-                if (keyboard != null && keyboard.spaceKey.wasPressedThisFrame) StartWave();
+                BeginNight();
+            }
+        }
+
+        void BeginNight()
+        {
+            State.Phase = NfdPhase.Night;
+            BuildSpawnQueue(State.WaveNumber);
+            State.EnemiesToSpawn = spawnQueue.Count;
+            State.EnemiesAlive = 0;
+            spawnTimer = 0.25f;
+        }
+
+        // --- 夜(防衛) ---
+
+        void UpdateNight()
+        {
+            spawnTimer -= Time.deltaTime;
+            if (spawnQueue.Count > 0 && spawnTimer <= 0f)
+            {
+                var group = Random.Range(Wave.groupMin, Wave.groupMax + 1);
+                for (var i = 0; i < group && spawnQueue.Count > 0; i++) SpawnNext();
+                spawnTimer = Wave.spawnInterval;
+            }
+
+            State.EnemiesToSpawn = spawnQueue.Count;
+            State.EnemiesAlive = enemies.Count;
+
+            // 湧き切って全滅したらWaveクリア
+            if (spawnQueue.Count == 0 && enemies.Count == 0)
+            {
+                WaveCleared();
+            }
+        }
+
+        void WaveCleared()
+        {
+            // Waveクリア報酬(鉄)
+            State.Iron += Wave.clearRewardBase + State.WaveNumber * Wave.clearRewardPerWave;
+
+            if (State.WaveNumber >= State.TotalWaves)
+            {
+                State.Result = NfdRunResult.Won;
                 return;
             }
 
-            if (State.IsRunEnded) return;
+            State.WaveNumber++;
+            State.Phase = NfdPhase.Day;
+            State.PhaseTimer = Wave.dayTime;
+        }
 
-            spawnTimer -= Time.deltaTime;
-            if (State.EnemiesToSpawn > 0 && spawnTimer <= 0f)
+        // Wave予算から敵の編成を組む(enemies.js の予算制を移植)
+        void BuildSpawnQueue(int wave)
+        {
+            spawnQueue.Clear();
+            var index = Mathf.Clamp(wave - 1, 0, Wave.waveBudgets.Length - 1);
+            var budget = Wave.waveBudgets[index];
+
+            // このWaveで出せる敵(minWave考慮)
+            var pool = config.enemies.Where(e => e != null && e.minWave <= wave).ToList();
+            if (pool.Count == 0) return;
+
+            // 最終Wave: まずタンク(最高コストの敵)を確定で数体
+            if (wave >= State.TotalWaves)
             {
-                SpawnEnemy();
-                State.EnemiesToSpawn--;
-                spawnTimer = spawnInterval;
+                var tank = pool.OrderByDescending(e => e.cost).First();
+                for (var i = 0; i < Wave.bossWaveTanks; i++)
+                {
+                    spawnQueue.Add(tank);
+                    budget -= tank.cost;
+                }
             }
 
-            // 盤面の敵数を状態に反映(HUDはこれを読む)
-            State.EnemiesAlive = enemies.Count;
-
-            // 湧き切って全滅したら勝利
-            if (State.EnemiesToSpawn <= 0 && enemies.Count == 0)
+            // 残り予算をランダムな敵で埋める
+            var fill = new List<NfdEnemyData>();
+            var guard = 0;
+            while (budget > 0 && guard++ < 2000)
             {
-                State.Result = NfdRunResult.Won;
+                var affordable = pool.Where(e => e.cost <= budget).ToList();
+                if (affordable.Count == 0) break;
+                var pick = affordable[Random.Range(0, affordable.Count)];
+                fill.Add(pick);
+                budget -= pick.cost;
             }
+
+            // 埋めた分だけシャッフル(確定タンクは先頭のまま残す)
+            for (var i = fill.Count - 1; i > 0; i--)
+            {
+                var j = Random.Range(0, i + 1);
+                (fill[i], fill[j]) = (fill[j], fill[i]);
+            }
+            spawnQueue.AddRange(fill);
+        }
+
+        void SpawnNext()
+        {
+            if (enemyPrefab == null || core == null || spawnQueue.Count == 0) return;
+
+            var data = spawnQueue[0];
+            spawnQueue.RemoveAt(0);
+
+            var side = Random.Range(0, 4);
+            Vector3 pos = side switch
+            {
+                0 => new Vector3(Random.Range(-13.5f, 13.5f), 7.4f, 0f),
+                1 => new Vector3(Random.Range(-13.5f, 13.5f), -7.4f, 0f),
+                2 => new Vector3(-13.8f, Random.Range(-6.8f, 6.8f), 0f),
+                _ => new Vector3(13.8f, Random.Range(-6.8f, 6.8f), 0f),
+            };
+
+            var enemy = Instantiate(enemyPrefab, pos, Quaternion.identity);
+            enemy.Init(core, data);
         }
 
         // --- 状態を変更するメソッド(唯一の入口) ---
 
+        // 昼をスキップして夜を始める(UIボタン等からも呼べるように公開)
         public void StartWave()
         {
-            if (State.WaveRunning || State.IsRunEnded) return;
-            State.WaveRunning = true;
-            spawnTimer = 0.25f;
+            if (State.Phase == NfdPhase.Day && !State.IsRunEnded) BeginNight();
         }
 
         public void AddKill()
@@ -98,7 +206,6 @@ namespace NightFactoryDefence
             State.Kills++;
         }
 
-        // コアにダメージ。HPが0になったら敗北。
         public void DamageCore(float amount)
         {
             if (amount <= 0f || State.CoreHp <= 0f) return;
@@ -119,7 +226,6 @@ namespace NightFactoryDefence
             enemies.Remove(enemy);
         }
 
-        // 弾から呼ばれる。半径内で一番近い生存中の敵を返す(いなければnull)。
         public NfdEnemy FindClosestEnemy(Vector3 position, float radius)
         {
             NfdEnemy best = null;
@@ -141,23 +247,6 @@ namespace NightFactoryDefence
                 }
             }
             return best;
-        }
-
-        void SpawnEnemy()
-        {
-            if (enemyPrefab == null || core == null) return;
-
-            var side = Random.Range(0, 4);
-            Vector3 pos = side switch
-            {
-                0 => new Vector3(Random.Range(-13.5f, 13.5f), 7.4f, 0f),
-                1 => new Vector3(Random.Range(-13.5f, 13.5f), -7.4f, 0f),
-                2 => new Vector3(-13.8f, Random.Range(-6.8f, 6.8f), 0f),
-                _ => new Vector3(13.8f, Random.Range(-6.8f, 6.8f), 0f),
-            };
-
-            var enemy = Instantiate(enemyPrefab, pos, Quaternion.identity);
-            enemy.Init(core, Random.Range(0.9f, 1.35f), Random.Range(0.85f, 1.2f));
         }
     }
 }

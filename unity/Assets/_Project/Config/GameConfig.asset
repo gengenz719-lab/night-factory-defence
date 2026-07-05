@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46176c6f121567a45acebce0b21370a6, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdGameConfig
+  wave: {fileID: 11400000, guid: a4ac7375e18604749b6bc93dca282b86, type: 2}
+  player: {fileID: 11400000, guid: c8c592db73ffec544a6710c1c3dccd28, type: 2}
+  enemies:
+  - {fileID: 11400000, guid: 82231e2da4bc579469602431152d0d14, type: 2}
+  - {fileID: 11400000, guid: 34250573e2255ff48ae30932ee220622, type: 2}
+  - {fileID: 11400000, guid: 86ed4846558e8224083261b0ff096b1b, type: 2}
+  buildings:
+  - {fileID: 11400000, guid: 9b3ff12329b37fe4aa6c4f73849d9419, type: 2}
+  - {fileID: 11400000, guid: 47395d03cb8296a4ba1fd9e017058f1a, type: 2}
+  - {fileID: 11400000, guid: f98f3ee52040b7d449c0df9562939b71, type: 2}
+  - {fileID: 11400000, guid: 9b5066fddefcbe54281c0410e43d28a7, type: 2}
+  relics:
+  - {fileID: 11400000, guid: 3fca815725ae55e4cae6cc512bbe7c3d, type: 2}
+  - {fileID: 11400000, guid: f9a7d1df502509643929962db17576d6, type: 2}
+  - {fileID: 11400000, guid: 602e94ff937149847b73fbbe48f60051, type: 2}
+  - {fileID: 11400000, guid: 80ce4ce1929553343ae094582fb0cfbc, type: 2}
+  - {fileID: 11400000, guid: 001cc49b7826bf446a7e9e1c7a82ae50, type: 2}
+  - {fileID: 11400000, guid: 098ec6e157c30ea43b8eb3c741607613, type: 2}
+  - {fileID: 11400000, guid: 4cca824d6e3c7984abaa64993fdd8594, type: 2}
+  - {fileID: 11400000, guid: e8d41af52cb1eaf45a4729b80908c4b0, type: 2}
+  - {fileID: 11400000, guid: 39703a9819233d94f8e8b1f687502963, type: 2}
+  - {fileID: 11400000, guid: 5ae7839ef438ae74ebae87ca18c9f1e9, type: 2}

@@ -2,16 +2,17 @@ using UnityEngine;
 
 namespace NightFactoryDefence
 {
+    // 敵1体。ステータスは NfdEnemyData から受け取る(1種のプレハブを作り分ける)。
     public sealed class NfdEnemy : MonoBehaviour
     {
-        [SerializeField] float maxHp = 35f;
-        [SerializeField] float speed = 1.55f;
-        [SerializeField] float contactDamagePerSecond = 12f;
-        [SerializeField] float contactRange = 0.75f;
+        const float WalkerRadius = 0.28f; // 基準サイズ(スプライトのデフォルト半径)
 
         NfdCore core;
         NfdEnemyVisual visual;
         float hp;
+        float speed;
+        float contactDps;   // コア(建物)への毎秒ダメージ
+        float contactRange;
 
         public bool IsAlive => hp > 0f;
 
@@ -20,11 +21,24 @@ namespace NightFactoryDefence
             visual = GetComponentInChildren<NfdEnemyVisual>();
         }
 
-        public void Init(NfdCore targetCore, float hpMultiplier, float speedMultiplier)
+        // GameManager がスポーン直後に呼ぶ。敵データで見た目とステータスを設定する。
+        public void Init(NfdCore targetCore, NfdEnemyData data)
         {
             core = targetCore;
-            hp = maxHp * hpMultiplier;
-            speed *= speedMultiplier;
+            hp = data.hp;
+            speed = data.speed;
+            contactDps = data.buildingDps;
+            contactRange = 1.0f + data.radius; // コア(約1unit)の縁に触れる距離
+
+            // 見た目: 本体を敵色に染め、体格を半径に合わせて拡縮
+            var body = transform.Find("visual/body");
+            if (body != null)
+            {
+                var sr = body.GetComponent<SpriteRenderer>();
+                if (sr != null) sr.color = data.color;
+            }
+            visual?.SetBaseScale(data.radius / WalkerRadius);
+            visual?.RefreshBaseColors();
         }
 
         void OnEnable()
@@ -45,7 +59,7 @@ namespace NightFactoryDefence
             var distance = toCore.magnitude;
             if (distance <= contactRange)
             {
-                core.TakeDamage(contactDamagePerSecond * Time.deltaTime);
+                core.TakeDamage(contactDps * Time.deltaTime);
                 return;
             }
 

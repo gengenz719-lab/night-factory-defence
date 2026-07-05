@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ba95f244bff20a4abd093fb9d8bc2b0, type: 3}
+  m_Name: Building_Miner
+  m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdBuildingData
+  kind: 2
+  displayName: "\u63A1\u6398\u6A5F"
+  hotkey: 3
+  cost: 20
+  hp: 60
+  color: {r: 0.37254903, g: 0.6901961, b: 0.8156863, a: 1}
+  description: "\u9271\u5E8A\u306E\u4E0A\u306B\u8A2D\u7F6E\u3002\u9244\u3092\u81EA\u52D5\u63A1\u53D6"
+  range: 4.25
+  fireRate: 2
+  dmg: 12
+  bulletSpeed: 12
+  interval: 2
+  output: 1
+  needsOre: 1
+  ironIn: 1
+  ammoOut: 2

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40ae716cb8e2fc8468baf68415618067, type: 3}
+  m_Name: WaveData
+  m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdWaveData
+  dayTime: 45
+  waveBudgets: 0a0000000f000000160000001e0000002a0000002600000034000000440000005500000078000000
+  bossWaveTanks: 4
+  spawnInterval: 0.9
+  groupMin: 1
+  groupMax: 3
+  startIron: 80
+  startAmmo: 80
+  clearRewardBase: 20
+  clearRewardPerWave: 5
+  aggroRange: 2.75

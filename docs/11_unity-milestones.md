@@ -41,10 +41,10 @@
 | # | タスク | 具体的にやること | 完了条件 |
 |---|---|---|---|
 | A1 | ✅ 状態/頭脳/描画の分離 | `NfdGameState`(純データ) + `NfdGameManager`(状態変更の唯一の入口) + `NfdSliceHud`(読むだけ) | 縦スライスがGameState経由で動く。検証済み |
-| A2 | ScriptableObject化 | `NfdEnemyData`(hp/speed/cost/minWave/buildingDps/playerDmg/プレハブ参照)、`NfdBuildingData`派生4種(壁/タレット/採掘機/加工炉)、`NfdWaveData`(予算10本 `[10,15,22,30,42,38,52,68,85,120]`・昼45秒・報酬・初期資源80/80・スポーン間隔0.9)、`NfdPlayerData`、`NfdRelicData`。config.jsの数値を上の換算表で移す。アセットはエディタスクリプトで自動生成 | インスペクタで数値を変えると挙動が変わる(例: walker速度) |
-| A3a | 昼夜フェーズマシン | GameStateに `Phase(Day/Night)` と `PhaseTimer` を追加。昼45秒(Spaceでスキップ)→夜→敵全滅で次の昼→Wave番号+1。10Wave目クリアで勝利 | 昼夜が10回まわって勝利画面が出る |
-| A3b | Wave予算スポーン | enemies.jsの予算編成を移植: Wave予算からcost引きで敵種を抽選(minWave考慮)、1回に1〜3体グループ、間隔0.9秒。Wave10はタンク4体確定から開始。敵3種(ランナー/タンク)のプレハブとSDFスプライトを追加 | Wave1はウォーカーのみ、Wave4からタンク混入、Wave10が山場になる |
-| A4 | 最小HUD更新 | 左上: フェーズ・残り時間・コアHPバー / 上中央: Wave n/10・残敵数。モックの配置に合わせる(OnGUIのままでよい) | 一目で「今なにをすべきか」が分かる |
+| A2 | ✅ ScriptableObject化 | `NfdEnemyData`/`NfdBuildingData`4種/`NfdWaveData`/`NfdPlayerData`/`NfdRelicData` + まとめる `NfdGameConfig`。config.jsの数値を換算表で移し、`Generate Config Assets`メニューで自動生成。GameManagerがconfigを読む | インスペクタで数値を変えると挙動が変わる。検証済み |
+| A3a | ✅ 昼夜フェーズマシン | GameStateに `Phase(Day/Night)`・`PhaseTimer`。昼45秒(Spaceスキップ)→夜→全滅で次の昼→Wave+1、報酬付与。10Waveクリアで勝利 | 昼→夜→クリア→次の昼、Wave10でWon。検証済み |
+| A3b | ✅ Wave予算スポーン | 予算からcost引きで敵抽選(minWave考慮)、1〜3体グループ・間隔0.9、Wave10タンク4確定。敵3種は1プレハブをEnemyDataで作り分け(色・体格) | W1ウォーカーのみ/W4タンク混入/W10予算120。検証済み |
+| A4 | ✅ 最小HUD更新 | 左上=フェーズ/残り時間/コアHPバー、上中央=Wave n/10・残敵数、左下=資源。OnGUIで実装 | 一目で状況が分かる。検証済み |
 
 ## Phase B: 建設
 

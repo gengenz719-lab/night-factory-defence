@@ -4,8 +4,15 @@ namespace NightFactoryDefence
     public enum NfdRunResult
     {
         Playing, // 進行中
-        Won,     // 勝利(Wave生存)
+        Won,     // 勝利(全Wave生存)
         Lost,    // 敗北(コア破壊)
+    }
+
+    // 昼夜フェーズ。
+    public enum NfdPhase
+    {
+        Day,   // 建設フェーズ
+        Night, // 防衛(Wave)フェーズ
     }
 
     // ゲームの「状態」だけを持つ純粋なデータ。MonoBehaviourではない(シーンに置かない)。
@@ -19,11 +26,15 @@ namespace NightFactoryDefence
     {
         // ラン全体
         public NfdRunResult Result = NfdRunResult.Playing;
+        public NfdPhase Phase = NfdPhase.Day;
         public int WaveNumber = 1;
+        public int TotalWaves = 10;
         public int Kills;
 
+        // フェーズ
+        public float PhaseTimer;   // 昼の残り秒数(夜は未使用)
+
         // 夜(Wave)の進行
-        public bool WaveRunning;
         public int EnemiesAlive;   // いま盤面にいる敵の数
         public int EnemiesToSpawn; // これから湧く残りの数
         public int EnemiesRemaining => EnemiesAlive + EnemiesToSpawn;
@@ -32,6 +43,11 @@ namespace NightFactoryDefence
         public float CoreHp;
         public float CoreMaxHp;
 
+        // 資源(表示はPhase Cから。ロジックは先に持っておく)
+        public int Iron;
+        public int Ammo;
+
+        public bool IsNight => Phase == NfdPhase.Night;
         public bool IsRunEnded => Result != NfdRunResult.Playing;
     }
 }

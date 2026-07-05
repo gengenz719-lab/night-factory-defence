@@ -19,6 +19,7 @@ namespace NightFactoryDefence
         float phase;        // 個体ごとに揺れをずらすための位相
         float facing;       // 現在向いている角度(度)
         float flashTimer;
+        float baseScale = 1f; // 体格(敵の種類で変える)
 
         void Awake()
         {
@@ -49,7 +50,7 @@ namespace NightFactoryDefence
             var wobble = Mathf.Sin(Time.time * wobbleSpeed + phase) * wobbleAngle;
             visualRoot.localRotation = Quaternion.Euler(0f, 0f, facing + wobble);
             var step = 1f + Mathf.Abs(Mathf.Sin(Time.time * wobbleSpeed * 0.5f + phase)) * 0.05f;
-            visualRoot.localScale = new Vector3(2f - step, step, 1f);
+            visualRoot.localScale = new Vector3((2f - step) * baseScale, step * baseScale, 1f);
 
             // 被弾フラッシュ: 一瞬白く光らせてから元の色に戻す
             if (flashTimer > 0f)
@@ -68,6 +69,19 @@ namespace NightFactoryDefence
         public void OnHit()
         {
             flashTimer = flashTime;
+        }
+
+        // NfdEnemy.Init から呼ばれる。体格を設定する。
+        public void SetBaseScale(float scale)
+        {
+            baseScale = scale;
+        }
+
+        // 本体の色を染めた後に呼ぶ。フラッシュ復帰用の基準色を取り直す。
+        public void RefreshBaseColors()
+        {
+            if (renderers == null) return;
+            for (var i = 0; i < renderers.Length; i++) baseColors[i] = renderers[i].color;
         }
     }
 }

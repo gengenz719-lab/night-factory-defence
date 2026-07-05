@@ -108,11 +108,7 @@ namespace NightFactoryDefence.Editor
             CreateSpriteChild(visual, "eye dot left", Sprite("circle"), new Vector3(-0.063f, 0.189f, 0f), new Vector2(0.05f, 0.05f), ColorFromHex("#ffb0a0", 0.999f), 44);
             CreateSpriteChild(visual, "eye dot right", Sprite("circle"), new Vector3(0.063f, 0.189f, 0f), new Vector2(0.05f, 0.05f), ColorFromHex("#ffb0a0", 0.999f), 44);
             go.AddComponent<NfdEnemyVisual>();
-            var enemy = go.AddComponent<NfdEnemy>();
-            SetSerialized(enemy, "maxHp", 42f);
-            SetSerialized(enemy, "speed", 1.7f);
-            SetSerialized(enemy, "contactDamagePerSecond", 18f);
-            SetSerialized(enemy, "contactRange", 0.78f);
+            go.AddComponent<NfdEnemy>(); // ステータスは実行時に NfdEnemyData から設定される
             PrefabUtility.SaveAsPrefabAsset(go, prefabPath);
             AssetDatabase.ImportAsset(prefabPath, ImportAssetOptions.ForceUpdate);
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath).GetComponent<NfdEnemy>();
@@ -297,10 +293,11 @@ namespace NightFactoryDefence.Editor
             // 頭脳(状態を所有・変更する)
             var go = new GameObject("GameManager");
             var manager = go.AddComponent<NfdGameManager>();
+            var config = AssetDatabase.LoadAssetAtPath<NfdGameConfig>("Assets/_Project/Config/GameConfig.asset");
+            if (config == null) Debug.LogWarning("GameConfig.asset が無い。先に 'Generate Config Assets' を実行してください。");
+            SetSerialized(manager, "config", config);
             SetSerialized(manager, "core", core);
             SetSerialized(manager, "enemyPrefab", enemyPrefab);
-            SetSerialized(manager, "enemyCount", 24);
-            SetSerialized(manager, "spawnInterval", 0.8f);
 
             // 最小HUD(状態を読むだけ)。GameManagerとは別GameObjectにして責任を分ける
             var hud = new GameObject("HUD");

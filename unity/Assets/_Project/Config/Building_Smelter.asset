@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ba95f244bff20a4abd093fb9d8bc2b0, type: 3}
+  m_Name: Building_Smelter
+  m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdBuildingData
+  kind: 3
+  displayName: "\u52A0\u5DE5\u7089"
+  hotkey: 4
+  cost: 20
+  hp: 60
+  color: {r: 0.8156863, g: 0.4392157, b: 0.37254903, a: 1}
+  description: "\u92441 \u2192 \u5F3E\u85AC2 \u306B\u52A0\u5DE5\u3059\u308B"
+  range: 4.25
+  fireRate: 2
+  dmg: 12
+  bulletSpeed: 12
+  interval: 2
+  output: 1
+  needsOre: 0
+  ironIn: 1
+  ammoOut: 2
