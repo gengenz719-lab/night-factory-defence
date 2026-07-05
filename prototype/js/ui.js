@@ -256,17 +256,22 @@ function drawHpBar(ctx, cx, y, width, ratio, color) {
   ctx.fillRect(cx - width / 2, y, width * ratio, 4);
 }
 
-// 画面上部のHUD
+// 画面上部のHUD(工業HUDテーマ)
 function drawHud(ctx) {
-  ctx.fillStyle = 'rgba(10,12,18,0.75)';
-  ctx.fillRect(0, 0, CONFIG.GRID_W * CONFIG.TILE, 34);
+  const W = CONFIG.GRID_W * CONFIG.TILE;
 
-  ctx.font = 'bold 15px sans-serif';
+  // 背景バー + 下端のオレンジ・アクセント線
+  ctx.fillStyle = 'rgba(6,8,12,0.86)';
+  ctx.fillRect(0, 0, W, 34);
+  ctx.fillStyle = '#ff6a1a';
+  ctx.fillRect(0, 33, W, 2);
+
+  ctx.font = 'bold 15px "Segoe UI", sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
-  // Wave / フェーズ
-  ctx.fillStyle = '#ffd75e';
+  // Wave / フェーズ(昼=明るいオレンジ / 夜=濃いオレンジ)
+  ctx.fillStyle = (S.phase === 'day') ? '#ff8c3a' : '#ff6a1a';
   let phaseText;
   if (S.phase === 'day') {
     phaseText = `☀ 昼(建設) 残り ${Math.ceil(S.phaseTimer)} 秒 - Spaceで夜を開始`;
@@ -274,16 +279,17 @@ function drawHud(ctx) {
     const remain = S.spawnQueue.length + S.enemies.length;
     phaseText = `☾ 夜(防衛) 残り敵 ${remain}`;
   }
-  ctx.fillText(`Wave ${S.wave}/${CONFIG.WAVE_BUDGETS.length}  ${phaseText}`, 12, 17);
+  ctx.fillText(`WAVE ${S.wave}/${CONFIG.WAVE_BUDGETS.length}   ${phaseText}`, 12, 17);
 
-  // 資源
-  ctx.fillStyle = '#c3c9d6';
+  // 資源(シアン)
+  ctx.fillStyle = '#3fd2ff';
   ctx.textAlign = 'right';
-  const W = CONFIG.GRID_W * CONFIG.TILE;
-  ctx.fillText(`鉄 ${S.iron}   弾薬 ${S.ammo}`, W - 190, 17);
+  ctx.fillText(`鉄 ${S.iron}    弾薬 ${S.ammo}`, W - 188, 17);
 
   // コアHP
+  ctx.fillStyle = '#e8ecf2';
   ctx.fillText('コア', W - 150, 17);
-  drawHpBar(ctx, W - 75, 13, 130, S.core.hp / S.core.maxHp, '#ffd75e');
+  const coreRatio = S.core.hp / S.core.maxHp;
+  drawHpBar(ctx, W - 75, 13, 130, coreRatio, coreRatio < 0.3 ? '#ff3b30' : '#ff6a1a');
   ctx.textBaseline = 'alphabetic';
 }

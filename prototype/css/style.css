@@ -1,10 +1,29 @@
-/* Night Factory Defence - プロトタイプ用スタイル */
+/* Night Factory Defence - プロトタイプUI(工業/軍用HUDテーマ) */
+/* キーアート準拠のパレット。色や質感を変えたいときは :root の変数を触ればOK */
+
+:root {
+  --bg:        #06080c;   /* 画面の一番暗い背景 */
+  --panel:     #0f141b;   /* パネル面 */
+  --panel-2:   #161d27;   /* 少し明るいパネル */
+  --steel:     #2a3542;   /* 縁・区切り(鋼) */
+  --steel-lit: #3d4b5c;
+  --orange:    #ff6a1a;   /* 主役アクセント(ブランド/警告) */
+  --orange-lit:#ff8c3a;
+  --cyan:      #3fd2ff;   /* 補助アクセント(テック/灯り) */
+  --cyan-dim:  #2a7d9c;
+  --danger:    #ff3b30;   /* 危険(コア破壊など) */
+  --text:      #e8ecf2;
+  --muted:     #8b97a8;
+  --hazard:    repeating-linear-gradient(45deg,#ffb800 0 12px,#161616 12px 24px);
+}
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background: #0d0f14;
-  color: #e6e8ee;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #12202b 0%, transparent 60%),
+    var(--bg);
+  color: var(--text);
   font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
   display: flex;
   justify-content: center;
@@ -20,118 +39,163 @@ body {
 canvas {
   display: block;
   width: 100%;
-  background: #161a22;
-  border: 1px solid #2a3140;
-  border-radius: 6px;
+  background: #0b1017;
+  border: 1px solid var(--steel);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #000, 0 12px 40px rgba(0,0,0,0.6), inset 0 0 120px rgba(0,0,0,0.5);
   cursor: crosshair;
 }
 
-/* ---- オーバーレイ(タイトル・レリック・リザルト) ---- */
+/* ============ オーバーレイ共通 ============ */
 .overlay {
   position: absolute;
   inset: 0;
-  background: rgba(10, 12, 18, 0.88);
+  background:
+    radial-gradient(900px 500px at 50% 30%, rgba(255,106,26,0.06), transparent 60%),
+    rgba(4, 6, 10, 0.92);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 20px;
   text-align: center;
-  border-radius: 6px;
-  padding: 20px;
+  border-radius: 4px;
+  padding: 24px;
+  overflow: hidden;
+}
+/* 走査線(うっすら) */
+.overlay::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px);
+  pointer-events: none;
 }
 .overlay.hidden { display: none; }
 
-/* スタジオ名(Kagyo games) */
+/* ============ ブランドロゴ ============ */
+.brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 34px;
+  border: 1px solid var(--steel-lit);
+  background: linear-gradient(180deg, rgba(22,29,39,0.9), rgba(10,14,20,0.9));
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.6), 0 0 30px rgba(255,106,26,0.08);
+  /* 角を斬ったHUDフレーム */
+  clip-path: polygon(0 14px, 14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px));
+}
+.brand .emblem { width: 54px; height: 54px; flex: 0 0 auto; filter: drop-shadow(0 0 6px rgba(255,106,26,0.6)); }
+.wordmark { display: flex; flex-direction: column; align-items: flex-start; line-height: 0.92; }
+.t-main {
+  font-family: "Impact", "Haettenschweiler", "Arial Narrow", sans-serif;
+  font-size: 58px; letter-spacing: 3px; color: #d7dee7;
+  text-shadow: 0 2px 0 #000, 0 0 18px rgba(63,210,255,0.15);
+}
+.t-sub {
+  font-family: "Impact", "Haettenschweiler", "Arial Narrow", sans-serif;
+  font-size: 30px; letter-spacing: 12px; color: var(--orange);
+  text-shadow: 0 0 16px rgba(255,106,26,0.5);
+  margin-top: 2px; padding-left: 3px;
+}
+
+/* スタジオ名 */
 .studio {
-  font-size: 20px;
-  letter-spacing: 6px;
-  text-transform: uppercase;
-  color: #7fd0ff;
-  font-weight: 300;
-  padding: 4px 18px;
-  border: 1px solid #2f4a5e;
-  border-radius: 20px;
-  background: rgba(127, 208, 255, 0.06);
+  font-size: 13px; letter-spacing: 6px; text-transform: uppercase;
+  color: var(--cyan); font-weight: 600;
+  padding: 5px 20px;
+  border: 1px solid var(--cyan-dim);
+  background: rgba(63,210,255,0.06);
+  clip-path: polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
 }
-.studio-small {
-  font-size: 13px;
-  letter-spacing: 3px;
-  color: #6a7488;
-  border: none;
-  background: none;
-  margin-top: 4px;
+.studio-small { color: var(--muted); border-color: var(--steel); background: none; margin-top: 6px; }
+
+.overlay h1 { font-size: 40px; letter-spacing: 4px; color: var(--orange); text-transform: uppercase; }
+.overlay h2 {
+  font-family: "Impact","Arial Narrow",sans-serif;
+  font-size: 30px; letter-spacing: 4px; color: var(--text); text-transform: uppercase;
 }
+.overlay h2 b { color: var(--orange); }
+.subtitle { color: var(--muted); letter-spacing: 1px; font-size: 15px; }
 
-.overlay h1 { font-size: 42px; letter-spacing: 4px; color: #ffd75e; }
-.overlay h2 { font-size: 28px; color: #ffd75e; }
-.subtitle { color: #9aa3b5; }
-
+/* ============ 操作説明パネル ============ */
 .howto {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  color: #c3c9d6;
-  font-size: 15px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid #2a3140;
-  border-radius: 8px;
-  padding: 16px 24px;
+  display: flex; flex-direction: column; gap: 9px;
+  color: #c3ccd8; font-size: 14px; text-align: left;
+  background: linear-gradient(180deg, rgba(22,29,39,0.8), rgba(10,14,20,0.8));
+  border: 1px solid var(--steel);
+  border-left: 3px solid var(--orange);
+  padding: 16px 22px;
+  max-width: 640px;
 }
-.howto .tips { color: #7fd0ff; margin-top: 4px; }
+.howto b {
+  color: #fff; background: #23303c; border: 1px solid var(--steel-lit);
+  padding: 1px 8px; border-radius: 3px; font-size: 13px; letter-spacing: 1px;
+}
+.howto .tips { color: var(--cyan); margin-top: 4px; font-size: 13px; }
 
+/* ============ ボタン ============ */
 .big-btn {
-  font-size: 20px;
-  padding: 12px 48px;
-  background: #ffd75e;
-  color: #1a1405;
+  font-family: "Impact","Arial Narrow",sans-serif;
+  font-size: 22px; letter-spacing: 3px; text-transform: uppercase;
+  padding: 14px 56px;
+  color: #1a0d02;
+  background: linear-gradient(180deg, var(--orange-lit), var(--orange));
   border: none;
-  border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
+  clip-path: polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);
+  box-shadow: 0 0 22px rgba(255,106,26,0.35), inset 0 -3px 0 rgba(0,0,0,0.25);
+  transition: filter .1s, transform .05s;
 }
-.big-btn:hover { background: #ffe38f; }
+.big-btn:hover { filter: brightness(1.12); }
+.big-btn:active { transform: translateY(1px); }
 
-/* ---- レリックカード ---- */
-#relicCards {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
+/* ============ レリックカード ============ */
+#relicCards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
 .relic-card {
-  width: 220px;
-  background: #1c2230;
-  border: 2px solid #3a4560;
-  border-radius: 10px;
-  padding: 18px 14px;
+  position: relative;
+  width: 230px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--steel-lit);
+  border-top: 3px solid var(--orange);
+  padding: 20px 16px;
   cursor: pointer;
-  transition: transform .1s, border-color .1s;
+  text-align: left;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  transition: transform .1s, box-shadow .1s, border-color .1s;
 }
-.relic-card:hover { transform: translateY(-4px); border-color: #ffd75e; }
-.relic-card .r-name { font-size: 18px; font-weight: bold; color: #ffd75e; margin-bottom: 8px; }
-.relic-card .r-desc { font-size: 14px; color: #c3c9d6; line-height: 1.5; }
+.relic-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--cyan);
+  box-shadow: 0 8px 26px rgba(0,0,0,0.5), 0 0 22px rgba(63,210,255,0.25);
+}
+.relic-card .r-name {
+  font-family: "Impact","Arial Narrow",sans-serif;
+  font-size: 20px; letter-spacing: 1px; color: var(--orange-lit); margin-bottom: 10px; text-transform: uppercase;
+}
+.relic-card .r-desc { font-size: 13.5px; color: #c3ccd8; line-height: 1.55; }
 
-/* ---- 建設ツールバー ---- */
-#toolbar {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  justify-content: center;
-}
+/* ============ 建設ツールバー ============ */
+#toolbar { display: flex; gap: 8px; margin-top: 10px; justify-content: center; flex-wrap: wrap; }
 #toolbar.hidden { display: none; }
 .tool-btn {
-  min-width: 130px;
-  padding: 8px 10px;
-  background: #1c2230;
-  color: #e6e8ee;
-  border: 2px solid #3a4560;
-  border-radius: 6px;
+  min-width: 150px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  color: var(--text);
+  border: 1px solid var(--steel-lit);
   cursor: pointer;
-  font-size: 14px;
-  text-align: center;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+  text-align: left;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  transition: border-color .1s, box-shadow .1s;
 }
-.tool-btn:hover { border-color: #7fd0ff; }
-.tool-btn.selected { border-color: #ffd75e; background: #2a2c1c; }
-.tool-btn .t-cost { display: block; font-size: 12px; color: #9aa3b5; }
-.tool-btn.disabled { opacity: 0.45; cursor: not-allowed; }
+.tool-btn:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(63,210,255,0.2); }
+.tool-btn.selected {
+  border-color: var(--orange);
+  background: linear-gradient(180deg, #2a1c0e, #14100a);
+  box-shadow: 0 0 14px rgba(255,106,26,0.3);
+}
+.tool-btn .t-cost { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 400; }
+.tool-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+.tool-btn.disabled:hover { border-color: var(--steel-lit); box-shadow: none; }
