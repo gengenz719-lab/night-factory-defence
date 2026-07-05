@@ -18,6 +18,43 @@ namespace NightFactoryDefence
             DrawBottomLeft(state);
             DrawBuildBar();
             DrawCenterMessage(state);
+            DrawRelicChoice(state); // 最前面
+        }
+
+        // Waveクリア後のレリック3択(カードをクリックで選ぶ)
+        static void DrawRelicChoice(NfdGameState state)
+        {
+            if (!state.ChoosingRelic || state.RelicChoices.Count == 0) return;
+
+            // 暗幕
+            var prev = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.72f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.84f, 0.28f) } };
+            GUI.Label(new Rect(0, Screen.height * 0.2f, Screen.width, 40), "レリックを選べ", title);
+
+            var count = state.RelicChoices.Count;
+            const float cardW = 220f, cardH = 150f, gap = 24f;
+            var totalW = count * cardW + (count - 1) * gap;
+            var x0 = (Screen.width - totalW) * 0.5f;
+            var y = Screen.height * 0.32f;
+
+            var nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white }, wordWrap = true };
+            var descStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.UpperCenter, normal = { textColor = new Color(0.8f, 0.85f, 0.9f) }, wordWrap = true };
+
+            for (var i = 0; i < count; i++)
+            {
+                var relic = state.RelicChoices[i];
+                var rect = new Rect(x0 + i * (cardW + gap), y, cardW, cardH);
+                if (GUI.Button(rect, GUIContent.none))
+                {
+                    NfdGameManager.Instance.ChooseRelic(i);
+                }
+                GUI.Label(new Rect(rect.x + 10, rect.y + 18, rect.width - 20, 50), relic.displayName, nameStyle);
+                GUI.Label(new Rect(rect.x + 12, rect.y + 66, rect.width - 24, 74), relic.description, descStyle);
+            }
         }
 
         // 下中央: 建設ホットバー([1]〜[4]・コスト・選択中ハイライト・鉄不足はグレー)

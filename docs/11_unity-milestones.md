@@ -68,9 +68,9 @@
 
 | # | タスク | 具体的にやること | 完了条件 |
 |---|---|---|---|
-| D1 | 効果適用の仕組み | `NfdRelicEffectType` enum(pierce/fireRate/moveSpeed/maxHp/turretRange/turretRate/wallHp/smelterBonus/minerRate/ammoNow)。GameStateに獲得済みレリックと補正値テーブルを持ち、各システム(射撃・タレット・工場)が参照する | テスト用レリックを直接付与して数値が変わる |
-| D2 | Waveクリア3択UI | 夜明け時に3枚のカード(名前+説明)を提示、未所持からランダム、クリックで獲得して昼へ。ポーズ状態で選ばせる | Wave1クリアで3択が出て、選ぶと効果が付く |
-| D3 | 10種レリック移植 | config.jsの10種(跳弾/速射/俊足/硬い体/砲術/連射砲/強化壁/効率炉/血の採掘/弾薬箱)をRelicDataアセット化し、1種ずつ効果を確認 | 10種すべて体感できる |
+| D1 | ✅ 効果適用の仕組み | GameManagerに補正テーブル(pierce/fireRate/moveSpeed/maxHp/turretRange/turretRate/wallHp/smelterBonus/minerRate/ammoNow)。弾/プレイヤー/タレット/採掘機/壁が参照 | 全10種を適用し全補正が変化。検証済み |
+| D2 | ✅ Waveクリア3択UI | 夜明けに3枚カード(名前+説明)を暗幕付きで提示、未所持からランダム、クリックで獲得→昼へ。選択中はゲーム停止 | Wave1クリアで3択表示、弾薬箱選択で弾薬80→160。検証済み |
+| D3 | ✅ 10種レリック移植 | config.jsの10種をRelicDataアセット化(Phase Aで生成)、ApplyRelicで全effectType対応 | 10種すべて効果が乗る。検証済み |
 
 ## Phase E: 勝敗とリザルト
 

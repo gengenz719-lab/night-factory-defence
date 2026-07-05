@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace NightFactoryDefence
 {
     // ランの結末。
@@ -46,6 +48,11 @@ namespace NightFactoryDefence
         // 資源(表示はPhase Cから。ロジックは先に持っておく)
         public int Iron;
         public int Ammo;
+
+        // レリック(Waveクリア後の3択)
+        public bool ChoosingRelic;                       // 3択の選択待ちか
+        public List<NfdRelicData> RelicChoices = new();  // 提示中の3枚
+        public List<string> OwnedRelicIds = new();       // 取得済み(重複防止)
 
         public bool IsNight => Phase == NfdPhase.Night;
         public bool IsRunEnded => Result != NfdRunResult.Playing;

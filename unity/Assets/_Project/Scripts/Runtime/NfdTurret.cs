@@ -25,7 +25,8 @@ namespace NightFactoryDefence
             if (manager == null || manager.IsRunEnded || building.Data == null) return;
 
             var data = building.Data;
-            var target = manager.FindClosestEnemy(transform.position, data.range);
+            var range = data.range * manager.TurretRangeMult; // レリック「砲術」
+            var target = manager.FindClosestEnemy(transform.position, range);
             if (target == null) return;
 
             // 砲身を敵の方へ向ける(スプライトは上向きが正面)
@@ -42,12 +43,13 @@ namespace NightFactoryDefence
             // 弾薬を1消費できたら発射
             if (!manager.TrySpendAmmo(1)) return;
 
-            cooldown = 1f / Mathf.Max(0.01f, data.fireRate);
+            var fireRate = data.fireRate * manager.TurretRateMult; // レリック「連射砲」
+            cooldown = 1f / Mathf.Max(0.01f, fireRate);
             if (bulletPrefab != null)
             {
                 var dir = (target.transform.position - transform.position).normalized;
                 var bullet = Instantiate(bulletPrefab, transform.position, Quaternion.identity);
-                bullet.Fire(dir, data.dmg, data.bulletSpeed);
+                bullet.Fire(dir, data.dmg, data.bulletSpeed, manager.PierceBonus);
             }
         }
     }

@@ -20,7 +20,7 @@ namespace NightFactoryDefence
             if (game != null && game.IsRunEnded) return;
 
             var data = Data;
-            var moveSpeed = data != null ? data.speed : 4.5f;
+            var moveSpeed = (data != null ? data.speed : 4.5f) * MoveSpeedMult(game); // レリック「俊足」
 
             var move = ReadMove();
             transform.position += new Vector3(move.x, move.y, 0f) * moveSpeed * Time.deltaTime;
@@ -68,17 +68,24 @@ namespace NightFactoryDefence
             if (bulletPrefab == null || muzzle == null) return;
 
             var data = Data;
-            var fireRate = data != null ? data.fireRate : 4f;
+            var manager = NfdGameManager.Instance;
+            var rateMult = manager != null ? manager.PlayerFireRateMult : 1f; // レリック「速射」
+            var fireRate = (data != null ? data.fireRate : 4f) * rateMult;
             fireCooldown = 1f / fireRate;
 
             // 弾薬を1消費できたときだけ撃つ(弾薬0では撃てない=工場の動機)
-            var manager = NfdGameManager.Instance;
             if (manager != null && !manager.TrySpendAmmo(1)) return;
 
             var dmg = data != null ? data.dmg : 15f;
             var speed = data != null ? data.bulletSpeed : 13f;
+            var pierce = manager != null ? manager.PierceBonus : 0; // レリック「跳弾」
             var bullet = Instantiate(bulletPrefab, muzzle.position, Quaternion.identity);
-            bullet.Fire(direction.sqrMagnitude > 0.0001f ? direction : transform.up, dmg, speed);
+            bullet.Fire(direction.sqrMagnitude > 0.0001f ? direction : transform.up, dmg, speed, pierce);
+        }
+
+        static float MoveSpeedMult(NfdGameManager manager)
+        {
+            return manager != null ? manager.PlayerMoveSpeedMult : 1f;
         }
 
         static Vector3 ClampToArena(Vector3 position)

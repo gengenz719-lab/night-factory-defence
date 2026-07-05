@@ -1,9 +1,10 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace NightFactoryDefence
 {
-    // 弾。まっすぐ飛んで最寄りの敵に当たると消える。
-    // ダメージと速度は発射元(プレイヤー/タレット)が Fire で渡す。
+    // 弾。まっすぐ飛んで敵に当たると消える。
+    // ダメージ・速度・貫通数は発射元(プレイヤー/タレット)が Fire で渡す。
     public sealed class NfdBullet : MonoBehaviour
     {
         [SerializeField] float lifeSeconds = 1.4f;
@@ -11,12 +12,15 @@ namespace NightFactoryDefence
 
         Vector3 velocity;
         float damage = 15f;
+        int pierce;                       // あと何体貫通できるか(レリック「跳弾」)
+        readonly HashSet<NfdEnemy> hit = new(); // 同じ敵を二度打ちしない
 
-        // dir=方向, dmg=ダメージ, speed=弾速(unit/s)
-        public void Fire(Vector3 direction, float dmg, float speed)
+        // dir=方向, dmg=ダメージ, speed=弾速, pierceCount=貫通数
+        public void Fire(Vector3 direction, float dmg, float speed, int pierceCount = 0)
         {
             velocity = direction.normalized * speed;
             damage = dmg;
+            pierce = pierceCount;
         }
 
         void Update()
@@ -33,9 +37,16 @@ namespace NightFactoryDefence
             if (manager == null) return;
 
             var enemy = manager.FindClosestEnemy(transform.position, hitRadius);
-            if (enemy == null) return;
+            if (enemy == null || hit.Contains(enemy)) return;
 
             enemy.TakeDamage(damage);
+            hit.Add(enemy);
+
+            if (pierce > 0)
+            {
+                pierce--; // まだ貫通できる。消えずに飛び続ける
+                return;
+            }
             Destroy(gameObject);
         }
     }

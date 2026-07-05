@@ -20,10 +20,13 @@ namespace NightFactoryDefence
             var manager = NfdGameManager.Instance;
             if (manager == null || manager.IsRunEnded || building.Data == null) return;
 
+            // レリック「血の採掘」で間隔が短くなる(生産が速くなる)
+            var interval = building.Data.interval / Mathf.Max(0.01f, manager.MinerRateMult);
+
             timer += Time.deltaTime;
-            if (timer >= building.Data.interval)
+            if (timer >= interval)
             {
-                timer -= building.Data.interval;
+                timer -= interval;
                 manager.AddIron(Mathf.RoundToInt(building.Data.output));
             }
         }

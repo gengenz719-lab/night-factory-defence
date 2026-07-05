@@ -28,8 +28,16 @@ namespace NightFactoryDefence
         public NfdGameState State { get; } = new NfdGameState();
         public NfdGameConfig Config => config;
 
-        // レリックによる補正(Phase Dで設定される)。加工炉の弾薬ボーナスなど。
-        public int SmelterBonus { get; set; }
+        // レリックによる補正。各システム(弾/プレイヤー/タレット/工場)がここを読む。
+        public int SmelterBonus { get; private set; }
+        public int PierceBonus { get; private set; }
+        public float PlayerFireRateMult { get; private set; } = 1f;
+        public float PlayerMoveSpeedMult { get; private set; } = 1f;
+        public float PlayerMaxHpBonus { get; private set; }
+        public float TurretRangeMult { get; private set; } = 1f;
+        public float TurretRateMult { get; private set; } = 1f;
+        public float WallHpMult { get; private set; } = 1f;
+        public float MinerRateMult { get; private set; } = 1f;
 
         readonly List<NfdEnemy> enemies = new();
         readonly List<NfdEnemyData> spawnQueue = new();
@@ -68,6 +76,9 @@ namespace NightFactoryDefence
             }
 
             if (State.IsRunEnded) return;
+
+            // レリック選択中はゲーム進行を止める(プレイヤーがカードを選ぶまで)
+            if (State.ChoosingRelic) return;
 
             if (State.Phase == NfdPhase.Day) UpdateDay(keyboard);
             else UpdateNight();
@@ -128,9 +139,96 @@ namespace NightFactoryDefence
                 return;
             }
 
+            OfferRelics();
+        }
+
+        // Waveクリア後に未取得のレリックから3枚を提示する
+        void OfferRelics()
+        {
+            var pool = config.relics != null
+                ? config.relics.Where(r => r != null && !State.OwnedRelicIds.Contains(r.id)).ToList()
+                : new System.Collections.Generic.List<NfdRelicData>();
+
+            // シャッフルして先頭3枚
+            for (var i = pool.Count - 1; i > 0; i--)
+            {
+                var j = Random.Range(0, i + 1);
+                (pool[i], pool[j]) = (pool[j], pool[i]);
+            }
+
+            State.RelicChoices.Clear();
+            for (var i = 0; i < pool.Count && i < 3; i++) State.RelicChoices.Add(pool[i]);
+
+            if (State.RelicChoices.Count == 0)
+            {
+                // 全部取得済みなら選択を飛ばして次の昼へ
+                AdvanceToNextDay();
+                return;
+            }
+
+            State.ChoosingRelic = true;
+        }
+
+        // 3択のカードを選んだときに呼ばれる(HUDのボタンから)
+        public void ChooseRelic(int index)
+        {
+            if (!State.ChoosingRelic) return;
+
+            if (index >= 0 && index < State.RelicChoices.Count)
+            {
+                var relic = State.RelicChoices[index];
+                ApplyRelic(relic);
+                State.OwnedRelicIds.Add(relic.id);
+            }
+
+            State.ChoosingRelic = false;
+            State.RelicChoices.Clear();
+            AdvanceToNextDay();
+        }
+
+        void AdvanceToNextDay()
+        {
             State.WaveNumber++;
             State.Phase = NfdPhase.Day;
             State.PhaseTimer = Wave.dayTime;
+        }
+
+        // レリックの効果を適用する(relics.js の applyEffect に相当)
+        void ApplyRelic(NfdRelicData relic)
+        {
+            switch (relic.effectType)
+            {
+                case NfdRelicEffectType.Pierce:
+                    PierceBonus += Mathf.RoundToInt(relic.value);
+                    break;
+                case NfdRelicEffectType.FireRate:
+                    PlayerFireRateMult *= relic.value;
+                    break;
+                case NfdRelicEffectType.MoveSpeed:
+                    PlayerMoveSpeedMult *= relic.value;
+                    break;
+                case NfdRelicEffectType.MaxHp:
+                    PlayerMaxHpBonus += relic.value; // 反映はPhase E(プレイヤーHP)
+                    break;
+                case NfdRelicEffectType.TurretRange:
+                    TurretRangeMult *= relic.value;
+                    break;
+                case NfdRelicEffectType.TurretRate:
+                    TurretRateMult *= relic.value;
+                    break;
+                case NfdRelicEffectType.WallHp:
+                    WallHpMult *= relic.value;
+                    break;
+                case NfdRelicEffectType.SmelterBonus:
+                    SmelterBonus += Mathf.RoundToInt(relic.value);
+                    break;
+                case NfdRelicEffectType.MinerRate:
+                    MinerRateMult *= relic.value;
+                    break;
+                case NfdRelicEffectType.AmmoNow:
+                    AddAmmo(Mathf.RoundToInt(relic.value));
+                    break;
+            }
         }
 
         // Wave予算から敵の編成を組む(enemies.js の予算制を移植)

@@ -22,8 +22,14 @@ namespace NightFactoryDefence
             Data = data;
             GridX = gx;
             GridY = gy;
+
             maxHp = data.hp;
-            hp = data.hp;
+            // レリック「強化壁」: 壁の最大HPが増える
+            if (data.kind == NfdBuildingKind.Wall && NfdGameManager.Instance != null)
+            {
+                maxHp *= NfdGameManager.Instance.WallHpMult;
+            }
+            hp = maxHp;
         }
 
         // 敵に攻撃されたときに呼ばれる。HP0で撤去。
