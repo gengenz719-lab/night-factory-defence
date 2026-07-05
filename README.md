@@ -6,18 +6,18 @@
 
 **▶ https://gengenz719-lab.github.io/night-factory-defence/**
 
-このリンクを開くだけで遊べます。GitHubアカウントもダウンロードも不要。パートナーにはこのリンクを渡してください。
+このリンクを開くだけでUnity WebGL版を遊べます。GitHubアカウントもダウンロードも不要。パートナーにはこのリンクを渡してください。
 
 ### ローカルで遊ぶ場合
 
 ```text
-prototype/index.html をブラウザで開くだけ。インストール不要。
+Unity Editorで unity/Assets/_Project/Scenes/PlayableSlice.unity を開いて Play。
 ```
 
-またはローカルサーバーで:
+WebGLビルド済みファイルをローカルで確認する場合:
 
 ```powershell
-npx serve prototype
+npx serve .
 ```
 
 ### 操作方法
@@ -26,12 +26,8 @@ npx serve prototype
 |---|---|
 | 移動 | WASD / 矢印キー |
 | 射撃 | マウス左クリック(長押し可) |
-| 建設選択 | 1〜4 キー or 画面下のボタン |
-| 建設 | 選択中に左クリック |
-| 撤去(50%返金) | 建物を右クリック |
-| 建設キャンセル | Esc |
-| 昼フェーズをスキップ | Space |
-| ポーズ | P |
+| Wave開始 | Space |
+| リスタート | R |
 
 ### ゲームの流れ
 
@@ -45,7 +41,9 @@ Waveクリア: 3択レリックで強化
 ## プロジェクト構成
 
 ```text
-prototype/   … HTML5プロトタイプ(今ここで開発中)
+play/        … GitHub Pagesで配信するUnity WebGLテストプレイ版
+unity/       … Unityプロジェクト
+prototype/   … 旧HTML5プロトタイプ
 docs/        … 企画・仕様・ルール・アイデア置き場
 CLAUDE.md    … AI(Claude Code / Cursor等)向けの開発ルール
 ```
