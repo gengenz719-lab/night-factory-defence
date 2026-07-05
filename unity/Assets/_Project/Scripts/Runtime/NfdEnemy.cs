@@ -10,9 +10,15 @@ namespace NightFactoryDefence
         [SerializeField] float contactRange = 0.75f;
 
         NfdCore core;
+        NfdEnemyVisual visual;
         float hp;
 
         public bool IsAlive => hp > 0f;
+
+        void Awake()
+        {
+            visual = GetComponentInChildren<NfdEnemyVisual>();
+        }
 
         public void Init(NfdCore targetCore, float hpMultiplier, float speedMultiplier)
         {
@@ -51,6 +57,7 @@ namespace NightFactoryDefence
             if (damage <= 0f || !IsAlive) return;
 
             hp -= damage;
+            visual?.OnHit();
             if (hp <= 0f)
             {
                 NfdPlayableSliceController.Instance?.AddKill();
