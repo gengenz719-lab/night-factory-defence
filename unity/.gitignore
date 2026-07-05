@@ -1,0 +1,53 @@
+# Unity プロジェクト用 .gitignore
+# 参考: https://github.com/github/gitignore/blob/main/Unity.gitignore
+
+# Unityが自動生成するフォルダ(コミット不要)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Asset メタデータのうち不要なもの
+/[Aa]ssets/AssetStoreTools*
+/[Aa]ssets/Plugins/Editor/JetBrains*
+
+# IDE / エディタ
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.unity.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ビルド成果物
+*.apk
+*.aab
+*.unitypackage
+*.app
+crashlytics-build.properties
+
+# Gradle / その他
+.gradle/
+export/

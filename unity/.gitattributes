@@ -1,0 +1,47 @@
+# Unity + Git LFS 設定
+# 大容量・バイナリのアセットを Git LFS で管理する。
+# 初回に一度だけ「git lfs install」を実行しておくこと。
+
+# 改行コードの正規化(テキストは自動、下記バイナリは対象外)
+* text=auto
+
+# --- 画像 ---
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.gif filter=lfs diff=lfs merge=lfs -text
+*.psd filter=lfs diff=lfs merge=lfs -text
+*.tga filter=lfs diff=lfs merge=lfs -text
+*.tif filter=lfs diff=lfs merge=lfs -text
+*.tiff filter=lfs diff=lfs merge=lfs -text
+*.bmp filter=lfs diff=lfs merge=lfs -text
+*.exr filter=lfs diff=lfs merge=lfs -text
+*.hdr filter=lfs diff=lfs merge=lfs -text
+
+# --- 音声 ---
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.aif filter=lfs diff=lfs merge=lfs -text
+*.aiff filter=lfs diff=lfs merge=lfs -text
+
+# --- 3Dモデル ---
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.obj filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+
+# --- フォント・動画・その他バイナリ ---
+*.ttf filter=lfs diff=lfs merge=lfs -text
+*.otf filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.mov filter=lfs diff=lfs merge=lfs -text
+*.unitypackage filter=lfs diff=lfs merge=lfs -text
+
+# --- Unityのテキスト系(LFS対象外・マージ時に競合を避ける設定) ---
+# .unity / .prefab / .asset は YAML テキスト。競合しにくいよう force-text 扱い。
+*.unity merge=unityyamlmerge eol=lf
+*.prefab merge=unityyamlmerge eol=lf
+*.asset merge=unityyamlmerge eol=lf
+*.meta merge=unityyamlmerge eol=lf
+*.controller merge=unityyamlmerge eol=lf
+*.anim merge=unityyamlmerge eol=lf
