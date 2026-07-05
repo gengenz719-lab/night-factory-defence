@@ -69,3 +69,4 @@ CLAUDE.md    … AI(Claude Code / Cursor等)向けの開発ルール
 | [docs/07_ideas.md](docs/07_ideas.md) | レリック案・敵案のストック |
 | [docs/08_github-guide.md](docs/08_github-guide.md) | GitHub参加ガイド(クローン・作業フロー) |
 | [docs/09_discord-setup.md](docs/09_discord-setup.md) | Discord開発サーバーの設計図 |
+| [docs/10_unity-migration.md](docs/10_unity-migration.md) | Unity移植の準備・計画 |
