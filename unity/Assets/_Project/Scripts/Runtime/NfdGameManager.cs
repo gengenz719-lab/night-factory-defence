@@ -307,6 +307,15 @@ namespace NightFactoryDefence
             State.Kills++;
         }
 
+        // プレイヤーが自分の状態をHUD表示用にミラーする
+        public void ReportPlayer(float hp, float maxHp, bool down, float respawn)
+        {
+            State.PlayerHp = hp;
+            State.PlayerMaxHp = maxHp;
+            State.PlayerDown = down;
+            State.PlayerRespawn = respawn;
+        }
+
         // --- 資源(鉄・弾薬) ---
 
         public bool TrySpendIron(int amount)

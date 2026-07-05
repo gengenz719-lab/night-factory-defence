@@ -133,31 +133,49 @@ namespace NightFactoryDefence
             GUI.Label(new Rect(x, 46, w, 22), sub, small);
         }
 
-        // 左下: 資源(Phase Cで本実装。ここでは数字だけ)
+        // 左下: 資源 + プレイヤーHP
         static void DrawBottomLeft(NfdGameState state)
         {
-            var y = Screen.height - 78f;
-            GUI.Box(new Rect(14, y, 200, 64), GUIContent.none);
+            var y = Screen.height - 104f;
+            GUI.Box(new Rect(14, y, 210, 90), GUIContent.none);
             var s = new GUIStyle(GUI.skin.label) { fontSize = 16, normal = { textColor = Color.white } };
-            GUI.Label(new Rect(26, y + 8, 190, 22), $"鉄   {state.Iron}", s);
-            GUI.Label(new Rect(26, y + 32, 190, 22), $"弾薬  {state.Ammo}", s);
+            GUI.Label(new Rect(26, y + 6, 190, 22), $"鉄   {state.Iron}", s);
+            GUI.Label(new Rect(26, y + 28, 190, 22), $"弾薬  {state.Ammo}", s);
+
+            // プレイヤーHPバー
+            var small = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = new Color(0.85f, 0.9f, 0.95f) } };
+            var label = state.PlayerDown ? $"復活まで {Mathf.CeilToInt(state.PlayerRespawn)}s" : $"体力 {Mathf.CeilToInt(state.PlayerHp)}/{Mathf.CeilToInt(state.PlayerMaxHp)}";
+            GUI.Label(new Rect(26, y + 52, 190, 18), label, small);
+            var frac = state.PlayerMaxHp > 0f ? Mathf.Clamp01(state.PlayerHp / state.PlayerMaxHp) : 0f;
+            var barColor = state.PlayerDown ? new Color(0.6f, 0.3f, 0.3f) : new Color(0.9f, 0.5f, 0.35f);
+            DrawBar(new Rect(26, y + 72, 184, 10), frac, barColor);
         }
 
+        // リザルト画面(勝敗 + 統計 + リスタート)
         static void DrawCenterMessage(NfdGameState state)
         {
-            string msg = null;
-            if (state.Result == NfdRunResult.Won) msg = "VICTORY - 10 WAVE 生存!  (R でリスタート)";
-            else if (state.Result == NfdRunResult.Lost) msg = "CORE DESTROYED  (R でリスタート)";
-            if (msg == null) return;
+            if (!state.IsRunEnded) return;
 
-            var style = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 30,
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = new Color(1f, 0.84f, 0.28f) }
-            };
-            GUI.Label(new Rect(0, Screen.height * 0.44f, Screen.width, 70), msg, style);
+            // 暗幕
+            var prev = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.75f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            var win = state.Result == NfdRunResult.Won;
+            var title = win ? "VICTORY" : "CORE DESTROYED";
+            var titleColor = win ? new Color(1f, 0.84f, 0.28f) : new Color(1f, 0.4f, 0.35f);
+
+            var titleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 44, fontStyle = FontStyle.Bold, normal = { textColor = titleColor } };
+            var statStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 20, normal = { textColor = Color.white } };
+            var hintStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 18, normal = { textColor = new Color(0.75f, 0.8f, 0.85f) } };
+
+            GUI.Label(new Rect(0, Screen.height * 0.30f, Screen.width, 60), title, titleStyle);
+
+            var reached = win ? state.TotalWaves : state.WaveNumber;
+            GUI.Label(new Rect(0, Screen.height * 0.44f, Screen.width, 30), $"到達 WAVE {reached} / {state.TotalWaves}", statStyle);
+            GUI.Label(new Rect(0, Screen.height * 0.50f, Screen.width, 30), $"撃破 {state.Kills}   レリック {state.OwnedRelicIds.Count} 個", statStyle);
+            GUI.Label(new Rect(0, Screen.height * 0.62f, Screen.width, 30), "R でリスタート", hintStyle);
         }
 
         static void DrawBar(Rect rect, float frac, Color fill)

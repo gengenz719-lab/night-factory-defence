@@ -13,6 +13,8 @@ namespace NightFactoryDefence
         float speed;
         float contactDps;   // コア(建物)への毎秒ダメージ
         float contactRange;
+        float playerDmg;    // プレイヤーへの接触ダメージ(1回分)
+        float aggroRange;   // この距離内のプレイヤーを狙う
 
         public bool IsAlive => hp > 0f;
 
@@ -29,6 +31,8 @@ namespace NightFactoryDefence
             speed = data.speed;
             contactDps = data.buildingDps;
             contactRange = 1.0f + data.radius; // コア(約1unit)の縁に触れる距離
+            playerDmg = data.playerDmg;
+            aggroRange = NfdGameManager.Instance != null ? NfdGameManager.Instance.Config.wave.aggroRange : 2.75f;
 
             // 見た目: 本体を敵色に染め、体格を半径に合わせて拡縮
             var body = transform.Find("visual/body");
@@ -54,6 +58,20 @@ namespace NightFactoryDefence
         void Update()
         {
             if (core == null || !IsAlive || NfdGameManager.Instance.IsRunEnded) return;
+
+            // 近くにプレイヤーがいれば、コアより優先して襲う(アグロ)
+            var player = NfdPlayerController.Instance;
+            if (player != null && player.IsAlive)
+            {
+                var toPlayer = player.transform.position - transform.position;
+                var distP = toPlayer.magnitude;
+                if (distP <= aggroRange)
+                {
+                    if (distP <= contactRange) player.TakeContact(playerDmg);
+                    else transform.position += toPlayer.normalized * speed * Time.deltaTime;
+                    return;
+                }
+            }
 
             var toCore = core.transform.position - transform.position;
             var distance = toCore.magnitude;

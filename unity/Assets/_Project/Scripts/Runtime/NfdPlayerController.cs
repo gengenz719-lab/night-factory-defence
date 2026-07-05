@@ -10,14 +10,58 @@ namespace NightFactoryDefence
         [SerializeField] Transform muzzle;
         [SerializeField] Camera worldCamera;
 
+        public static NfdPlayerController Instance { get; private set; }
+
         float fireCooldown;
+        float hp;
+        float maxHp;
+        float hurtTimer;      // 接触ダメージの間隔
+        float respawnTimer;   // 復活までの残り
+        float appliedMaxHpBonus = -1f; // レリックでmaxHpが増えたら全回復するための記録
+        Vector3 spawnPoint;
+        SpriteRenderer[] renderers;
+
+        public bool IsDown => respawnTimer > 0f;
+        public bool IsAlive => !IsDown;
 
         NfdPlayerData Data => config != null ? config.player : null;
+
+        void Awake()
+        {
+            Instance = this;
+            spawnPoint = transform.position;
+            renderers = GetComponentsInChildren<SpriteRenderer>();
+            var data = Data;
+            maxHp = data != null ? data.maxHp : 100f;
+            hp = maxHp;
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
 
         void Update()
         {
             var game = NfdGameManager.Instance;
-            if (game != null && game.IsRunEnded) return;
+            RefreshMaxHp(game);
+
+            if (hurtTimer > 0f) hurtTimer -= Time.deltaTime;
+
+            // 倒れている間はリスポーン待ち
+            if (IsDown)
+            {
+                respawnTimer -= Time.deltaTime;
+                if (respawnTimer <= 0f) Respawn();
+                game?.ReportPlayer(hp, maxHp, IsDown, Mathf.Max(0f, respawnTimer));
+                return;
+            }
+
+            if (game != null && game.IsRunEnded)
+            {
+                game.ReportPlayer(hp, maxHp, IsDown, 0f);
+                return;
+            }
 
             var data = Data;
             var moveSpeed = (data != null ? data.speed : 4.5f) * MoveSpeedMult(game); // レリック「俊足」
@@ -37,6 +81,55 @@ namespace NightFactoryDefence
             {
                 Shoot(aimDirection);
             }
+
+            game?.ReportPlayer(hp, maxHp, IsDown, 0f);
+        }
+
+        // レリック「硬い体」で最大HPが増えたら全回復する
+        void RefreshMaxHp(NfdGameManager game)
+        {
+            var data = Data;
+            var baseMax = data != null ? data.maxHp : 100f;
+            var bonus = game != null ? game.PlayerMaxHpBonus : 0f;
+            if (!Mathf.Approximately(bonus, appliedMaxHpBonus))
+            {
+                appliedMaxHpBonus = bonus;
+                maxHp = baseMax + bonus;
+                hp = maxHp; // 全回復
+            }
+        }
+
+        // 敵の接触ダメージを受ける(NfdEnemyから呼ばれる)。hurtCooldownで頻度を制限。
+        public void TakeContact(float dmg)
+        {
+            if (IsDown || hurtTimer > 0f) return;
+
+            var data = Data;
+            hurtTimer = data != null ? data.hurtCooldown : 0.8f;
+            hp -= dmg;
+            if (hp <= 0f) Down();
+        }
+
+        void Down()
+        {
+            hp = 0f;
+            var data = Data;
+            respawnTimer = data != null ? data.respawnTime : 4f;
+            SetVisible(false);
+        }
+
+        void Respawn()
+        {
+            respawnTimer = 0f;
+            hp = maxHp;
+            transform.position = spawnPoint;
+            SetVisible(true);
+        }
+
+        void SetVisible(bool visible)
+        {
+            if (renderers == null) return;
+            foreach (var r in renderers) if (r != null) r.enabled = visible;
         }
 
         Vector2 ReadMove()

@@ -45,6 +45,12 @@ namespace NightFactoryDefence
         public float CoreHp;
         public float CoreMaxHp;
 
+        // プレイヤー(HUD表示用のミラー。書き込むのはGameManager経由)
+        public float PlayerHp;
+        public float PlayerMaxHp;
+        public bool PlayerDown;      // 倒れてリスポーン待ちか
+        public float PlayerRespawn;  // 復活までの残り秒
+
         // 資源(表示はPhase Cから。ロジックは先に持っておく)
         public int Iron;
         public int Ammo;
