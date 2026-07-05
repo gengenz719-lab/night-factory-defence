@@ -67,3 +67,5 @@ CLAUDE.md    … AI(Claude Code / Cursor等)向けの開発ルール
 | [docs/05_team-onboarding.md](docs/05_team-onboarding.md) | パートナー向け参加ガイド |
 | [docs/06_ai-collab-guide.md](docs/06_ai-collab-guide.md) | AIバイブコーディングの回し方 |
 | [docs/07_ideas.md](docs/07_ideas.md) | レリック案・敵案のストック |
+| [docs/08_github-guide.md](docs/08_github-guide.md) | GitHub参加ガイド(クローン・作業フロー) |
+| [docs/09_discord-setup.md](docs/09_discord-setup.md) | Discord開発サーバーの設計図 |
