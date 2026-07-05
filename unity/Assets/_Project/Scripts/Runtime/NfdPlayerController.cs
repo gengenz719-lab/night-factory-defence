@@ -15,7 +15,7 @@ namespace NightFactoryDefence
 
         void Update()
         {
-            var game = NfdPlayableSliceController.Instance;
+            var game = NfdGameManager.Instance;
             if (game != null && game.IsRunEnded) return;
 
             var move = ReadMove();

@@ -26,10 +26,10 @@ namespace NightFactoryDefence
                 return;
             }
 
-            var controller = NfdPlayableSliceController.Instance;
-            if (controller == null) return;
+            var manager = NfdGameManager.Instance;
+            if (manager == null) return;
 
-            var enemy = controller.FindClosestEnemy(transform.position, hitRadius);
+            var enemy = manager.FindClosestEnemy(transform.position, hitRadius);
             if (enemy == null) return;
 
             enemy.TakeDamage(damage);

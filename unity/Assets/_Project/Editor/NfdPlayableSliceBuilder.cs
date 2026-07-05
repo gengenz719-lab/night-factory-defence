@@ -294,12 +294,17 @@ namespace NightFactoryDefence.Editor
 
         static void CreateGameController(NfdCore core, NfdEnemy enemyPrefab)
         {
-            var go = new GameObject("GameController");
-            var controller = go.AddComponent<NfdPlayableSliceController>();
-            SetSerialized(controller, "core", core);
-            SetSerialized(controller, "enemyPrefab", enemyPrefab);
-            SetSerialized(controller, "enemyCount", 24);
-            SetSerialized(controller, "spawnInterval", 0.8f);
+            // 頭脳(状態を所有・変更する)
+            var go = new GameObject("GameManager");
+            var manager = go.AddComponent<NfdGameManager>();
+            SetSerialized(manager, "core", core);
+            SetSerialized(manager, "enemyPrefab", enemyPrefab);
+            SetSerialized(manager, "enemyCount", 24);
+            SetSerialized(manager, "spawnInterval", 0.8f);
+
+            // 最小HUD(状態を読むだけ)。GameManagerとは別GameObjectにして責任を分ける
+            var hud = new GameObject("HUD");
+            hud.AddComponent<NfdSliceHud>();
         }
 
         static Camera CreateCamera()

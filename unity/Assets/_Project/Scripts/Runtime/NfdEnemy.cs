@@ -29,17 +29,17 @@ namespace NightFactoryDefence
 
         void OnEnable()
         {
-            NfdPlayableSliceController.Instance?.RegisterEnemy(this);
+            NfdGameManager.Instance?.RegisterEnemy(this);
         }
 
         void OnDisable()
         {
-            NfdPlayableSliceController.Instance?.UnregisterEnemy(this);
+            NfdGameManager.Instance?.UnregisterEnemy(this);
         }
 
         void Update()
         {
-            if (core == null || !IsAlive || NfdPlayableSliceController.Instance.IsRunEnded) return;
+            if (core == null || !IsAlive || NfdGameManager.Instance.IsRunEnded) return;
 
             var toCore = core.transform.position - transform.position;
             var distance = toCore.magnitude;
@@ -60,7 +60,7 @@ namespace NightFactoryDefence
             visual?.OnHit();
             if (hp <= 0f)
             {
-                NfdPlayableSliceController.Instance?.AddKill();
+                NfdGameManager.Instance?.AddKill();
                 Destroy(gameObject);
             }
         }
