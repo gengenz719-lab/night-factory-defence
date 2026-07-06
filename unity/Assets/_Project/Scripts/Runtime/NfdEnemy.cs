@@ -15,6 +15,8 @@ namespace NightFactoryDefence
         float contactRange;
         float playerDmg;    // プレイヤーへの接触ダメージ(1回分)
         float aggroRange;   // この距離内のプレイヤーを狙う
+        Color deathColor;   // 撃破エフェクトの色
+        float deathScale;   // 撃破エフェクトの大きさ
 
         public bool IsAlive => hp > 0f;
 
@@ -33,6 +35,8 @@ namespace NightFactoryDefence
             contactRange = 1.0f + data.radius; // コア(約1unit)の縁に触れる距離
             playerDmg = data.playerDmg;
             aggroRange = NfdGameManager.Instance != null ? NfdGameManager.Instance.Config.wave.aggroRange : 2.75f;
+            deathColor = data.color;
+            deathScale = data.radius / WalkerRadius;
 
             // 見た目: 本体を敵色に染め、体格を半径に合わせて拡縮
             var body = transform.Find("visual/body");
@@ -107,6 +111,7 @@ namespace NightFactoryDefence
             if (hp <= 0f)
             {
                 NfdGameManager.Instance?.AddKill();
+                NfdFxManager.Instance?.Death(transform.position, deathColor, deathScale); // 撃破エフェクト
                 Destroy(gameObject);
             }
         }

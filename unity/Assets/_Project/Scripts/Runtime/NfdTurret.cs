@@ -48,8 +48,10 @@ namespace NightFactoryDefence
             if (bulletPrefab != null)
             {
                 var dir = (target.transform.position - transform.position).normalized;
-                var bullet = Instantiate(bulletPrefab, transform.position, Quaternion.identity);
+                var muzzlePos = transform.position + dir * 0.5f; // 砲身の先
+                var bullet = Instantiate(bulletPrefab, muzzlePos, Quaternion.identity);
                 bullet.Fire(dir, data.dmg, data.bulletSpeed, manager.PierceBonus);
+                NfdFxManager.Instance?.Muzzle(muzzlePos, dir); // 発砲炎
             }
         }
     }

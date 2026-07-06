@@ -64,6 +64,7 @@ namespace NightFactoryDefence.Editor
             CreatePlayer(bulletPrefab, camera);
             CreateGameController(core, enemyPrefab);
             CreateBuildSystem(camera, bulletPrefab, oreCenters, core.transform.position);
+            CreateFxSystem();
             CreateLights();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -369,6 +370,86 @@ namespace NightFactoryDefence.Editor
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
             UnityEngine.Object.DestroyImmediate(go);
             return prefab;
+        }
+
+        // --- 使い捨てエフェクト(マズルフラッシュ・着弾スパーク) ---
+
+        static void CreateFxSystem()
+        {
+            var muzzle = CreateMuzzleFlashPrefab();
+            var hit = CreateHitSparkPrefab();
+            var death = CreateDeathPrefab();
+
+            var go = new GameObject("FxManager");
+            var mgr = go.AddComponent<NfdFxManager>();
+            SetSerialized(mgr, "muzzleFlashPrefab", muzzle);
+            SetSerialized(mgr, "hitSparkPrefab", hit);
+            SetSerialized(mgr, "deathPrefab", death);
+        }
+
+        static NfdOneShotFx CreateMuzzleFlashPrefab()
+        {
+            var path = PrefabDir + "/Fx_MuzzleFlash.prefab";
+            var go = new GameObject("Fx_MuzzleFlash");
+            CreateSpriteChild(go.transform, "glow", Sprite("soft_glow"), Vector3.zero, new Vector2(0.85f, 0.85f), ColorFromHex("#ffd98a", 0.9f), 55);
+            CreateSpriteChild(go.transform, "core", Sprite("diamond"), new Vector3(0.22f, 0f, 0f), new Vector2(0.5f, 0.26f), ColorFromHex("#fff3c4", 0.999f), 56);
+
+            var lampGo = new GameObject("flash light");
+            lampGo.transform.SetParent(go.transform, false);
+            var l = lampGo.AddComponent<Light2D>();
+            l.lightType = Light2D.LightType.Point;
+            l.color = ColorFromHex("#ffb85e");
+            l.intensity = 2f;
+            l.pointLightOuterRadius = 2.2f;
+            l.falloffIntensity = 0.9f;
+
+            var fx = go.AddComponent<NfdOneShotFx>();
+            SetSerialized(fx, "life", 0.07f);
+            SetSerialized(fx, "startScale", 0.7f);
+            SetSerialized(fx, "endScale", 1.3f);
+            return SavePrefabFx(go, path);
+        }
+
+        static NfdOneShotFx CreateHitSparkPrefab()
+        {
+            var path = PrefabDir + "/Fx_HitSpark.prefab";
+            var go = new GameObject("Fx_HitSpark");
+            CreateSpriteChild(go.transform, "glow", Sprite("soft_glow"), Vector3.zero, new Vector2(0.55f, 0.55f), ColorFromHex("#fff0c0", 0.8f), 55);
+            CreateSpriteChild(go.transform, "spark", Sprite("diamond"), Vector3.zero, new Vector2(0.3f, 0.3f), ColorFromHex("#ffffff", 0.999f), 56);
+
+            var fx = go.AddComponent<NfdOneShotFx>();
+            SetSerialized(fx, "life", 0.12f);
+            SetSerialized(fx, "startScale", 0.35f);
+            SetSerialized(fx, "endScale", 0.95f);
+            return SavePrefabFx(go, path);
+        }
+
+        // 敵の撃破エフェクト(色はInitで敵に合わせる)。飛沫状の破片が広がる。
+        static NfdOneShotFx CreateDeathPrefab()
+        {
+            var path = PrefabDir + "/Fx_Death.prefab";
+            var go = new GameObject("Fx_Death");
+            CreateSpriteChild(go.transform, "burst", Sprite("soft_glow"), Vector3.zero, new Vector2(1f, 1f), ColorFromHex("#8fd07a", 0.85f), 45);
+            for (var i = 0; i < 6; i++)
+            {
+                var a = i * 60f * Mathf.Deg2Rad;
+                CreateSpriteChild(go.transform, "shard " + i, Sprite("diamond"),
+                    new Vector3(Mathf.Cos(a) * 0.22f, Mathf.Sin(a) * 0.22f, 0f),
+                    new Vector2(0.16f, 0.16f), ColorFromHex("#6fae4f", 0.999f), 46, i * 60f);
+            }
+            var fx = go.AddComponent<NfdOneShotFx>();
+            SetSerialized(fx, "life", 0.3f);
+            SetSerialized(fx, "startScale", 0.5f);
+            SetSerialized(fx, "endScale", 1.5f);
+            return SavePrefabFx(go, path);
+        }
+
+        static NfdOneShotFx SavePrefabFx(GameObject go, string path)
+        {
+            var prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            UnityEngine.Object.DestroyImmediate(go);
+            return prefab.GetComponent<NfdOneShotFx>();
         }
 
         // タレットの見た目。砲身は中心に置いたピボットの子にして、ピボットごと回すと中心で旋回する。

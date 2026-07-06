@@ -41,6 +41,7 @@ namespace NightFactoryDefence
 
             enemy.TakeDamage(damage);
             hit.Add(enemy);
+            NfdFxManager.Instance?.Hit(transform.position); // 着弾スパーク
 
             if (pierce > 0)
             {

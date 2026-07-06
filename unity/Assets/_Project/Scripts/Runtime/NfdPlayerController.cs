@@ -172,8 +172,10 @@ namespace NightFactoryDefence
             var dmg = data != null ? data.dmg : 15f;
             var speed = data != null ? data.bulletSpeed : 13f;
             var pierce = manager != null ? manager.PierceBonus : 0; // レリック「跳弾」
+            var dir = direction.sqrMagnitude > 0.0001f ? direction : transform.up;
             var bullet = Instantiate(bulletPrefab, muzzle.position, Quaternion.identity);
-            bullet.Fire(direction.sqrMagnitude > 0.0001f ? direction : transform.up, dmg, speed, pierce);
+            bullet.Fire(dir, dmg, speed, pierce);
+            NfdFxManager.Instance?.Muzzle(muzzle.position, dir); // 発砲炎
         }
 
         static float MoveSpeedMult(NfdGameManager manager)
