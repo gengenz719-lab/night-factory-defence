@@ -16,9 +16,19 @@ namespace NightFactoryDefence
         [SerializeField] GameObject[] prefabs; // config.buildings と同じ並び(wall/turret/miner/smelter)
 
         public int SelectedIndex { get; private set; }
+
+        // HUDのスロットクリックからも選べるように
+        public void Select(int index)
+        {
+            if (config != null && config.buildings != null && index >= 0 && index < config.buildings.Length)
+                SelectedIndex = index;
+        }
+
         public NfdBuildingData Selected =>
             config != null && config.buildings != null && SelectedIndex < config.buildings.Length
                 ? config.buildings[SelectedIndex] : null;
+
+        public static NfdBuildController Instance { get; private set; }
 
         SpriteRenderer ghost;
         int hoverX, hoverY;
@@ -26,12 +36,18 @@ namespace NightFactoryDefence
 
         void Awake()
         {
+            Instance = this;
             var go = new GameObject("BuildGhost");
             go.transform.SetParent(transform, false);
             ghost = go.AddComponent<SpriteRenderer>();
             ghost.sprite = ghostSprite;
             ghost.sortingOrder = 70;
             ghost.enabled = false;
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
         }
 
         void Update()

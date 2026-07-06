@@ -478,9 +478,30 @@ namespace NightFactoryDefence.Editor
             SetSerialized(manager, "core", core);
             SetSerialized(manager, "enemyPrefab", enemyPrefab);
 
-            // 最小HUD(状態を読むだけ)。GameManagerとは別GameObjectにして責任を分ける
+            // HUD(UI Toolkit)。状態を読むだけ。GameManagerとは別GameObjectにして責任を分ける
             var hud = new GameObject("HUD");
-            hud.AddComponent<NfdSliceHud>();
+            var uiDoc = hud.AddComponent<UnityEngine.UIElements.UIDocument>();
+            uiDoc.panelSettings = LoadOrCreateHudPanel();
+            hud.AddComponent<NfdHudController>();
+        }
+
+        static UnityEngine.UIElements.PanelSettings LoadOrCreateHudPanel()
+        {
+            const string path = Root + "/UI/NfdHudPanel.asset";
+            EnsureFolder(Root, "UI");
+            var panel = AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.PanelSettings>(path);
+            if (panel == null)
+            {
+                panel = ScriptableObject.CreateInstance<UnityEngine.UIElements.PanelSettings>();
+                AssetDatabase.CreateAsset(panel, path);
+            }
+            // 画面サイズに合わせてスケール(1920x1080基準)
+            panel.scaleMode = UnityEngine.UIElements.PanelScaleMode.ScaleWithScreenSize;
+            panel.referenceResolution = new Vector2Int(1920, 1080);
+            var theme = AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.ThemeStyleSheet>("Assets/UI Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss");
+            if (theme != null) panel.themeStyleSheet = theme;
+            EditorUtility.SetDirty(panel);
+            return panel;
         }
 
         static Camera CreateCamera()
