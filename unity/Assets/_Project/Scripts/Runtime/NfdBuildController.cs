@@ -4,10 +4,11 @@ using UnityEngine.InputSystem;
 namespace NightFactoryDefence
 {
     // 建設の入力とプレビューを担当する。
-    // - [1]〜[4] で建てる建物を選ぶ
-    // - マウス位置のタイルにゴースト(置ける=白/置けない=赤)を出す
-    // - 左クリックで設置(鉄を消費)、右クリックで撤去(50%返金)
-    // 資源のやりとりは GameManager 経由。占有判定は NfdBuildGrid。
+    // 操作の考え方:
+    // - 通常は「射撃モード」(建物は未選択=SelectedIndex -1)。左クリックは射撃(プレイヤー側で処理)
+    // - [1]〜[4] または建設バーのスロットで建物を選ぶと「設置モード」になり、左クリックで設置(銃は撃たない)
+    // - もう一度同じキー/スロット、または Esc/Q で設置モード解除 → 射撃に戻る
+    // - 右クリックはいつでも撤去(50%返金)
     public sealed class NfdBuildController : MonoBehaviour
     {
         [SerializeField] NfdGameConfig config;
@@ -15,17 +16,27 @@ namespace NightFactoryDefence
         [SerializeField] Sprite ghostSprite;
         [SerializeField] GameObject[] prefabs; // config.buildings と同じ並び(wall/turret/miner/smelter)
 
-        public int SelectedIndex { get; private set; }
+        public int SelectedIndex { get; private set; } = -1; // -1 = 未選択(射撃モード)
+        public bool IsArmed => SelectedIndex >= 0;            // 設置モードか
 
-        // HUDのスロットクリックからも選べるように
+        int armedFrame = -1; // 選択した瞬間のフレーム(同フレームの誤設置を防ぐ)
+
+        // キー/HUDスロットから呼ぶ。同じものを選ぶと解除(トグル)。
         public void Select(int index)
         {
-            if (config != null && config.buildings != null && index >= 0 && index < config.buildings.Length)
-                SelectedIndex = index;
+            if (config == null || config.buildings == null) return;
+            if (index < 0 || index >= config.buildings.Length) return;
+            SelectedIndex = (SelectedIndex == index) ? -1 : index;
+            armedFrame = Time.frameCount;
+        }
+
+        public void Disarm()
+        {
+            SelectedIndex = -1;
         }
 
         public NfdBuildingData Selected =>
-            config != null && config.buildings != null && SelectedIndex < config.buildings.Length
+            IsArmed && config != null && config.buildings != null && SelectedIndex < config.buildings.Length
                 ? config.buildings[SelectedIndex] : null;
 
         public static NfdBuildController Instance { get; private set; }
@@ -68,15 +79,24 @@ namespace NightFactoryDefence
         {
             var kb = Keyboard.current;
             if (kb == null) return;
-            if (kb.digit1Key.wasPressedThisFrame) SelectedIndex = 0;
-            if (kb.digit2Key.wasPressedThisFrame) SelectedIndex = 1;
-            if (kb.digit3Key.wasPressedThisFrame) SelectedIndex = 2;
-            if (kb.digit4Key.wasPressedThisFrame) SelectedIndex = 3;
+            if (kb.digit1Key.wasPressedThisFrame) Select(0);
+            if (kb.digit2Key.wasPressedThisFrame) Select(1);
+            if (kb.digit3Key.wasPressedThisFrame) Select(2);
+            if (kb.digit4Key.wasPressedThisFrame) Select(3);
+            // Esc / Q で設置モード解除(射撃に戻る)
+            if (kb.escapeKey.wasPressedThisFrame || kb.qKey.wasPressedThisFrame) Disarm();
         }
 
         void UpdateHover()
         {
             if (worldCamera == null || Mouse.current == null || ghost == null) return;
+
+            // 設置モードでないときはゴーストを出さない
+            if (!IsArmed)
+            {
+                ghost.enabled = false;
+                return;
+            }
 
             var mouse = Mouse.current.position.ReadValue();
             var world = worldCamera.ScreenToWorldPoint(new Vector3(mouse.x, mouse.y, -worldCamera.transform.position.z));
@@ -111,7 +131,11 @@ namespace NightFactoryDefence
             var mouse = Mouse.current;
             if (mouse == null) return;
 
-            if (mouse.leftButton.wasPressedThisFrame) TryPlace(manager);
+            // 設置は「設置モード」のときだけ。選択した同フレームは設置しない(スロットクリックの誤爆防止)
+            if (mouse.leftButton.wasPressedThisFrame && IsArmed && Time.frameCount != armedFrame)
+            {
+                TryPlace(manager);
+            }
             if (mouse.rightButton.wasPressedThisFrame) TryRemove(manager);
         }
 

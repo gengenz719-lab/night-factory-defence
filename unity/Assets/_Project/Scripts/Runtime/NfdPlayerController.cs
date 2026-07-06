@@ -76,8 +76,12 @@ namespace NightFactoryDefence
                 transform.up = aimDirection;
             }
 
+            // 設置モード中(建物を選択中)は左クリックが「設置」なので撃たない
+            var building = NfdBuildController.Instance;
+            var armed = building != null && building.IsArmed;
+
             fireCooldown -= Time.deltaTime;
-            if (Mouse.current != null && Mouse.current.leftButton.isPressed && fireCooldown <= 0f)
+            if (!armed && Mouse.current != null && Mouse.current.leftButton.isPressed && fireCooldown <= 0f)
             {
                 Shoot(aimDirection);
             }

@@ -242,11 +242,20 @@ namespace NightFactoryDefence
         }
         VisualElement bottomPlayerHpFill;
 
+        Label buildHint;
+
         void BuildBuildBar(VisualElement root)
         {
             var manager = NfdGameManager.Instance;
             var config = manager != null ? manager.Config : null;
             var count = config != null && config.buildings != null ? config.buildings.Length : 4;
+
+            // 操作ヒント(建設バーの上)
+            buildHint = MakeLabel(root, "", 13, new Color(0.75f, 0.8f, 0.85f));
+            buildHint.style.position = Position.Absolute;
+            buildHint.style.bottom = 80;
+            buildHint.style.left = 0; buildHint.style.right = 0;
+            buildHint.style.unityTextAlign = TextAnchor.MiddleCenter;
 
             var bar = new VisualElement();
             bar.style.position = Position.Absolute;
@@ -456,6 +465,14 @@ namespace NightFactoryDefence
             // 建設バー(選択ハイライト・鉄不足グレー)
             var build = NfdBuildController.Instance;
             var config = manager.Config;
+            if (buildHint != null)
+            {
+                var armed = build != null && build.IsArmed;
+                buildHint.text = armed
+                    ? "設置モード: 左クリックで設置 / 右クリック撤去 / Esc・Qで解除(射撃に戻る)"
+                    : "左クリック=射撃  /  [1〜4]キーで建物を選ぶと設置モード";
+                buildHint.style.color = armed ? new Color(0.4f, 0.85f, 1f) : new Color(0.7f, 0.75f, 0.8f);
+            }
             for (var i = 0; i < buildSlots.Count; i++)
             {
                 var selected = build != null && build.SelectedIndex == i;
