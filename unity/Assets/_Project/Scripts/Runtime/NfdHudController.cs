@@ -82,6 +82,7 @@ namespace NightFactoryDefence
             if (!built) return;
             Refresh();
             UpdateFloats();
+            UpdateMinimap();
         }
 
         // 浮遊ダメージ数字: 上昇+フェードし、ワールド座標を画面(パネル)座標に変換して配置
@@ -140,6 +141,7 @@ namespace NightFactoryDefence
             BuildTopRight(root);
             BuildBottomLeft(root);
             BuildBuildBar(root);
+            BuildMinimap(root);
             BuildRelicOverlay(root);
             BuildResultOverlay(root);
 
@@ -263,6 +265,106 @@ namespace NightFactoryDefence
                 buildNameLabels.Add(nameLabel);
                 buildCostLabels.Add(costLabel);
             }
+        }
+
+        // 右下ミニマップ + 警告
+        const float MapW = 168f, MapH = 95f;
+        VisualElement minimapContent;
+        readonly List<VisualElement> dotPool = new();
+        int dotUsed;
+        Label warningLabel;
+        float minimapTimer;
+
+        void BuildMinimap(VisualElement root)
+        {
+            var p = MakePanel(root);
+            p.style.bottom = 14; p.style.right = 14;
+            p.style.width = MapW + 20; p.style.paddingLeft = 6; p.style.paddingRight = 6; p.style.paddingTop = 6; p.style.paddingBottom = 6;
+
+            warningLabel = MakeLabel(p, "", 12, new Color(1f, 0.4f, 0.35f), true);
+            warningLabel.style.marginBottom = 3;
+
+            minimapContent = new VisualElement { pickingMode = PickingMode.Ignore };
+            minimapContent.style.width = MapW; minimapContent.style.height = MapH;
+            minimapContent.style.backgroundColor = new Color(0.02f, 0.04f, 0.06f, 0.9f);
+            SetBorder(minimapContent, new Color(0.2f, 0.4f, 0.5f, 0.6f), 1);
+            p.Add(minimapContent);
+        }
+
+        void UpdateMinimap()
+        {
+            if (minimapContent == null) return;
+            minimapTimer += Time.deltaTime;
+            if (minimapTimer < 0.1f) return; // 10Hz更新
+            minimapTimer = 0f;
+
+            dotUsed = 0;
+
+            // コア(中央)
+            AddDot(new Vector3(0f, 0.35f, 0f), Cyan, 7f, true);
+
+            // 建物(壁=灰/タレット=橙/採掘機・加工炉=シアン)。低HPは点滅色
+            var damaged = 0;
+            foreach (var b in Object.FindObjectsByType<NfdBuilding>(FindObjectsSortMode.None))
+            {
+                if (b == null || b.Data == null) continue;
+                Color c = b.Data.kind switch
+                {
+                    NfdBuildingKind.Turret => Orange,
+                    NfdBuildingKind.Wall => new Color(0.6f, 0.65f, 0.7f),
+                    _ => new Color(0.35f, 0.7f, 0.85f),
+                };
+                if (b.HpFraction < 0.5f) { damaged++; c = new Color(1f, 0.5f, 0.2f); }
+                AddDot(b.transform.position, c, 4f, false);
+            }
+
+            // 敵(赤)
+            var mgr = NfdGameManager.Instance;
+            if (mgr != null)
+            {
+                foreach (var e in mgr.Enemies)
+                {
+                    if (e != null && e.IsAlive) AddDot(e.transform.position, new Color(1f, 0.25f, 0.2f), 4f, false);
+                }
+            }
+
+            // プレイヤー(明るいシアン)
+            var player = NfdPlayerController.Instance;
+            if (player != null && player.IsAlive) AddDot(player.transform.position, new Color(0.6f, 0.95f, 1f), 6f, true);
+
+            // 余った点を隠す
+            for (var i = dotUsed; i < dotPool.Count; i++) dotPool[i].style.display = DisplayStyle.None;
+
+            // 警告(HPが減っている建物の数)
+            if (warningLabel != null)
+                warningLabel.text = damaged > 0 ? $"⚠ 損傷 {damaged}" : "";
+        }
+
+        void AddDot(Vector3 world, Color color, float size, bool diamond)
+        {
+            // world(x:-15..15, y:-8.5..8.5) → minimap(0..MapW, MapH..0)
+            var mx = (world.x + 15f) / 30f * MapW;
+            var my = (1f - (world.y + 8.5f) / 17f) * MapH;
+
+            VisualElement dot;
+            if (dotUsed < dotPool.Count) dot = dotPool[dotUsed];
+            else
+            {
+                dot = new VisualElement { pickingMode = PickingMode.Ignore };
+                dot.style.position = Position.Absolute;
+                minimapContent.Add(dot);
+                dotPool.Add(dot);
+            }
+            dotUsed++;
+
+            dot.style.display = DisplayStyle.Flex;
+            dot.style.width = size; dot.style.height = size;
+            dot.style.left = mx - size / 2f; dot.style.top = my - size / 2f;
+            dot.style.backgroundColor = color;
+            var radius = diamond ? 0f : size / 2f;
+            dot.style.borderTopLeftRadius = dot.style.borderTopRightRadius =
+                dot.style.borderBottomLeftRadius = dot.style.borderBottomRightRadius = radius;
+            dot.style.rotate = diamond ? new Rotate(45f) : new Rotate(0f);
         }
 
         void BuildRelicOverlay(VisualElement root)

@@ -43,6 +43,9 @@ namespace NightFactoryDefence
         readonly List<NfdEnemyData> spawnQueue = new();
         float spawnTimer;
 
+        // ミニマップなどの表示用(読み取り専用)
+        public IReadOnlyList<NfdEnemy> Enemies => enemies;
+
         NfdWaveData Wave => config.wave;
 
         public bool IsRunEnded => State.IsRunEnded;
