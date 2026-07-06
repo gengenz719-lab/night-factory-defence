@@ -42,6 +42,7 @@ namespace NightFactoryDefence
             enemy.TakeDamage(damage);
             hit.Add(enemy);
             NfdFxManager.Instance?.Hit(transform.position); // 着弾スパーク
+            NfdAudioManager.Instance?.Hit();
 
             if (pierce > 0)
             {

@@ -113,6 +113,7 @@ namespace NightFactoryDefence
             {
                 NfdGameManager.Instance?.AddKill();
                 NfdFxManager.Instance?.Death(transform.position, deathColor, deathScale); // 撃破エフェクト
+                NfdAudioManager.Instance?.Death();
                 Destroy(gameObject);
             }
         }

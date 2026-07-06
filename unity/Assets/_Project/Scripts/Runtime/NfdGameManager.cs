@@ -163,6 +163,7 @@ namespace NightFactoryDefence
             if (State.WaveNumber >= State.TotalWaves)
             {
                 State.Result = NfdRunResult.Won;
+                NfdAudioManager.Instance?.Win();
                 return;
             }
 
@@ -206,6 +207,7 @@ namespace NightFactoryDefence
                 var relic = State.RelicChoices[index];
                 ApplyRelic(relic);
                 State.OwnedRelicIds.Add(relic.id);
+                NfdAudioManager.Instance?.Relic();
             }
 
             State.ChoosingRelic = false;
@@ -380,6 +382,7 @@ namespace NightFactoryDefence
             {
                 State.Result = NfdRunResult.Lost;
                 NfdCameraShake.Instance?.AddTrauma(0.8f); // 破壊で大きく揺らす
+                NfdAudioManager.Instance?.Lose();
             }
         }
 

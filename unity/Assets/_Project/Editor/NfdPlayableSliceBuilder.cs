@@ -65,6 +65,7 @@ namespace NightFactoryDefence.Editor
             CreateGameController(core, enemyPrefab);
             CreateBuildSystem(camera, bulletPrefab, oreCenters, core.transform.position);
             CreateFxSystem();
+            new GameObject("AudioManager").AddComponent<NfdAudioManager>(); // 効果音(実行時合成)
             CreateLights();
 
             EditorSceneManager.SaveScene(scene, ScenePath);

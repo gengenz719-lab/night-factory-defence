@@ -52,6 +52,7 @@ namespace NightFactoryDefence
                 var bullet = Instantiate(bulletPrefab, muzzlePos, Quaternion.identity);
                 bullet.Fire(dir, data.dmg, data.bulletSpeed, manager.PierceBonus);
                 NfdFxManager.Instance?.Muzzle(muzzlePos, dir); // 発砲炎
+                NfdAudioManager.Instance?.Shoot();
             }
         }
     }

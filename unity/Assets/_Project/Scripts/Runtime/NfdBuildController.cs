@@ -128,6 +128,7 @@ namespace NightFactoryDefence
             var building = go.GetComponent<NfdBuilding>();
             building.Setup(data, hoverX, hoverY);
             NfdBuildGrid.Instance.Place(hoverX, hoverY, building);
+            NfdAudioManager.Instance?.Build();
         }
 
         void TryRemove(NfdGameManager manager)

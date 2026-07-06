@@ -176,6 +176,7 @@ namespace NightFactoryDefence
             var bullet = Instantiate(bulletPrefab, muzzle.position, Quaternion.identity);
             bullet.Fire(dir, dmg, speed, pierce);
             NfdFxManager.Instance?.Muzzle(muzzle.position, dir); // 発砲炎
+            NfdAudioManager.Instance?.Shoot();
         }
 
         static float MoveSpeedMult(NfdGameManager manager)
