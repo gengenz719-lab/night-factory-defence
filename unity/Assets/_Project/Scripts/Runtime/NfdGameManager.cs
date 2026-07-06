@@ -91,6 +91,8 @@ namespace NightFactoryDefence
 
         void UpdateDay(Keyboard keyboard)
         {
+            // 昼は脅威なし(端グローを消す)
+            State.ThreatTop = State.ThreatBottom = State.ThreatLeft = State.ThreatRight = 0f;
             State.PhaseTimer -= Time.deltaTime;
 
             var skip = keyboard != null && keyboard.spaceKey.wasPressedThisFrame;
@@ -124,11 +126,33 @@ namespace NightFactoryDefence
             State.EnemiesToSpawn = spawnQueue.Count;
             State.EnemiesAlive = enemies.Count;
 
+            UpdateThreats();
+
             // 湧き切って全滅したらWaveクリア
             if (spawnQueue.Count == 0 && enemies.Count == 0)
             {
                 WaveCleared();
             }
+        }
+
+        // 敵の位置から各方向の脅威度を計算する(画面端グロー用)
+        void UpdateThreats()
+        {
+            float top = 0f, bottom = 0f, left = 0f, right = 0f;
+            foreach (var e in enemies)
+            {
+                if (e == null) continue;
+                var p = e.transform.position;
+                var nx = Mathf.Clamp(p.x / 14f, -1f, 1f);
+                var ny = Mathf.Clamp(p.y / 7.5f, -1f, 1f);
+                if (ny > 0f) top += ny; else bottom += -ny;
+                if (nx > 0f) right += nx; else left += -nx;
+            }
+            // 数体でも端が光るよう /5 で正規化。滑らかに追従
+            State.ThreatTop = Mathf.Lerp(State.ThreatTop, Mathf.Clamp01(top / 5f), 0.2f);
+            State.ThreatBottom = Mathf.Lerp(State.ThreatBottom, Mathf.Clamp01(bottom / 5f), 0.2f);
+            State.ThreatLeft = Mathf.Lerp(State.ThreatLeft, Mathf.Clamp01(left / 5f), 0.2f);
+            State.ThreatRight = Mathf.Lerp(State.ThreatRight, Mathf.Clamp01(right / 5f), 0.2f);
         }
 
         void WaveCleared()

@@ -46,6 +46,9 @@ namespace NightFactoryDefence
         public float CoreMaxHp;
         public float CoreHitFlash; // 被弾直後に上がり、時間で減衰(赤ビネット用)
 
+        // 各方向の脅威度(0..1)。その方向から敵が迫っていると画面端が光る
+        public float ThreatTop, ThreatBottom, ThreatLeft, ThreatRight;
+
         // プレイヤー(HUD表示用のミラー。書き込むのはGameManager経由)
         public float PlayerHp;
         public float PlayerMaxHp;

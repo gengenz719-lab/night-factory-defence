@@ -108,6 +108,7 @@ namespace NightFactoryDefence
 
             hp -= damage;
             visual?.OnHit();
+            NfdHudController.Instance?.SpawnDamage(transform.position, damage); // ダメージ数字
             if (hp <= 0f)
             {
                 NfdGameManager.Instance?.AddKill();

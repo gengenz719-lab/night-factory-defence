@@ -37,11 +37,38 @@ namespace NightFactoryDefence
         VisualElement resultOverlay;
         Label resultTitle, resultStats;
 
+        // 浮遊ダメージ数字
+        VisualElement floatingLayer;
+        sealed class FloatNum { public Label label; public Vector3 world; public float timer; public float life; }
+        readonly List<FloatNum> floats = new();
+
         bool built;
+
+        public static NfdHudController Instance { get; private set; }
 
         void OnEnable()
         {
+            Instance = this;
             doc = GetComponent<UIDocument>();
+        }
+
+        void OnDisable()
+        {
+            if (Instance == this) Instance = null;
+        }
+
+        // 敵が被弾したときに数字をポップさせる(NfdEnemyから呼ぶ)
+        public void SpawnDamage(Vector3 worldPos, float amount)
+        {
+            if (!built || floatingLayer == null || floats.Count > 40) return;
+            var label = new Label(Mathf.RoundToInt(amount).ToString());
+            label.style.position = Position.Absolute;
+            label.style.fontSize = 15;
+            label.style.color = new Color(1f, 0.95f, 0.6f);
+            label.style.unityFontStyleAndWeight = FontStyle.Bold;
+            label.pickingMode = PickingMode.Ignore;
+            floatingLayer.Add(label);
+            floats.Add(new FloatNum { label = label, world = worldPos + new Vector3(Random.Range(-0.2f, 0.2f), 0.3f, 0f), timer = 0f, life = 0.6f });
         }
 
         void Start()
@@ -54,6 +81,39 @@ namespace NightFactoryDefence
             if (!built) Build();
             if (!built) return;
             Refresh();
+            UpdateFloats();
+        }
+
+        // 浮遊ダメージ数字: 上昇+フェードし、ワールド座標を画面(パネル)座標に変換して配置
+        void UpdateFloats()
+        {
+            if (floats.Count == 0) return;
+            var cam = Camera.main;
+            for (var i = floats.Count - 1; i >= 0; i--)
+            {
+                var f = floats[i];
+                f.timer += Time.deltaTime;
+                f.world += Vector3.up * 1.3f * Time.deltaTime;
+                var k = Mathf.Clamp01(f.timer / f.life);
+
+                if (cam != null && floatingLayer.panel != null)
+                {
+                    var sp = cam.WorldToScreenPoint(f.world);
+                    if (sp.z > 0f)
+                    {
+                        var panelPos = RuntimePanelUtils.ScreenToPanel(floatingLayer.panel, new Vector2(sp.x, Screen.height - sp.y));
+                        f.label.style.left = panelPos.x - 10f;
+                        f.label.style.top = panelPos.y - 10f;
+                    }
+                }
+                var c = f.label.style.color.value; c.a = 1f - k; f.label.style.color = c;
+
+                if (f.timer >= f.life)
+                {
+                    f.label.RemoveFromHierarchy();
+                    floats.RemoveAt(i);
+                }
+            }
         }
 
         // ---------- 構築 ----------
@@ -69,6 +129,12 @@ namespace NightFactoryDefence
             root.pickingMode = PickingMode.Ignore;
 
             BuildVignette(root);
+            // 浮遊ダメージ数字のレイヤー(全面・ピッキング無効)
+            floatingLayer = new VisualElement { pickingMode = PickingMode.Ignore };
+            floatingLayer.style.position = Position.Absolute;
+            floatingLayer.style.top = 0; floatingLayer.style.left = 0; floatingLayer.style.right = 0; floatingLayer.style.bottom = 0;
+            root.Add(floatingLayer);
+
             BuildTopLeft(root);
             BuildTopCenter(root);
             BuildTopRight(root);
@@ -328,9 +394,20 @@ namespace NightFactoryDefence
             var lowHp = s.CoreMaxHp > 0 ? 1f - Mathf.Clamp01(s.CoreHp / s.CoreMaxHp) : 0f;
             var lowPulse = 0f;
             if (lowHp > 0.7f) lowPulse = (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6f)) * ((lowHp - 0.7f) / 0.3f);
-            var danger = Mathf.Clamp01(Mathf.Max(s.CoreHitFlash, lowPulse));
-            var a = danger * 0.45f;
-            foreach (var e in vignetteEdges) e.style.backgroundColor = new Color(0.8f, 0.1f, 0.1f, a);
+            var danger = Mathf.Clamp01(Mathf.Max(s.CoreHitFlash, lowPulse)) * 0.45f;
+
+            // 各辺 = コア危機(全辺共通) と その方向の敵接近脅威 の濃い方
+            // vignetteEdges の並び: top, bottom, left, right
+            SetEdge(vignetteEdges[0], danger, s.ThreatTop);
+            SetEdge(vignetteEdges[1], danger, s.ThreatBottom);
+            SetEdge(vignetteEdges[2], danger, s.ThreatLeft);
+            SetEdge(vignetteEdges[3], danger, s.ThreatRight);
+        }
+
+        static void SetEdge(VisualElement e, float danger, float threat)
+        {
+            var a = Mathf.Max(danger, threat * 0.5f);
+            e.style.backgroundColor = new Color(0.85f, 0.12f, 0.12f, a);
         }
 
         static void SetFill(VisualElement fill, float frac)
