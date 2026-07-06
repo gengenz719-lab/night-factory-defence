@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Night Factory Defence Relic Cheat Sheet</title>
+<style>
+  :root {
+    --bg: #080b0f;
+    --panel: #111821;
+    --panel2: #17202b;
+    --line: #2b3744;
+    --text: #edf3f7;
+    --muted: #9faab6;
+    --cyan: #3fd2ff;
+    --amber: #ffbf3f;
+    --green: #66d27e;
+    --red: #ff6a5c;
+    --purple: #bb8cff;
+  }
+  * { box-sizing: border-box; }
+  html {
+    scrollbar-width: none;
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+  }
+  body {
+    width: 2400px;
+    margin: 0;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(63, 210, 255, 0.16), transparent 30%),
+      radial-gradient(circle at 82% 10%, rgba(255, 191, 63, 0.14), transparent 30%),
+      linear-gradient(180deg, #090d12 0%, #0c1118 46%, #07090d 100%);
+    color: var(--text);
+    font-family: "Yu Gothic UI", "Meiryo", "Noto Sans JP", system-ui, sans-serif;
+  }
+  .sheet {
+    padding: 70px 82px 78px;
+  }
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    align-items: end;
+    margin-bottom: 34px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 76px;
+    line-height: 0.95;
+    letter-spacing: 0;
+    color: white;
+  }
+  .subtitle {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 29px;
+  }
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(5, auto);
+    gap: 12px;
+    align-items: center;
+    justify-content: end;
+    font-size: 23px;
+  }
+  .pill {
+    border: 1px solid var(--line);
+    background: rgba(17, 24, 33, 0.86);
+    border-radius: 999px;
+    padding: 10px 16px;
+    white-space: nowrap;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .card {
+    position: relative;
+    min-height: 166px;
+    padding: 20px 20px 18px;
+    border-radius: 12px;
+    border: 2px solid var(--line);
+    background: linear-gradient(180deg, rgba(23, 32, 43, 0.94), rgba(11, 15, 21, 0.96));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(0,0,0,0.25);
+    overflow: hidden;
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 7px;
+    background: var(--accent);
+  }
+  .card.common { --accent: #8793a0; }
+  .card.rare { --accent: var(--cyan); }
+  .card.epic { --accent: var(--purple); }
+  .card.legend { --accent: var(--amber); }
+  .card.gamble { --accent: var(--red); }
+  .card.legend,
+  .card.gamble {
+    grid-column: span 2;
+    min-height: 142px;
+  }
+  .card.legend .name,
+  .card.gamble .name {
+    font-size: 28px;
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+  .card.legend .effect,
+  .card.gamble .effect {
+    font-size: 21px;
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--accent) 24%, #0a0f15);
+    border: 1px solid color-mix(in srgb, var(--accent) 60%, #263341);
+    font-size: 29px;
+  }
+  .name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 800;
+    font-size: 34px;
+    line-height: 1.05;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+  .rarity {
+    color: var(--accent);
+    font-size: 20px;
+    font-weight: 800;
+    border: 1px solid color-mix(in srgb, var(--accent) 55%, #34404b);
+    background: color-mix(in srgb, var(--accent) 12%, #101720);
+    border-radius: 8px;
+    padding: 6px 9px;
+  }
+  .meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .tag, .stack {
+    display: inline-flex;
+    align-items: center;
+    min-height: 29px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1px solid #334151;
+    color: #dce6ee;
+    background: rgba(255,255,255,0.045);
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .effect {
+    color: #f4f7fa;
+    font-size: 24px;
+    line-height: 1.3;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+  .small {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 18px;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+  .section {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 12px 0 0;
+    color: #f7fafc;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+  .section::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: linear-gradient(90deg, var(--line), transparent);
+  }
+  .synergy {
+    margin-top: 26px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    background: rgba(6, 10, 15, 0.74);
+    border-radius: 14px;
+  }
+  .synergy h2 {
+    margin: 0 0 14px;
+    font-size: 32px;
+  }
+  .synergy-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px 14px;
+  }
+  .combo {
+    padding: 12px 14px;
+    border: 1px solid #2a3541;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.035);
+    font-size: 19px;
+    line-height: 1.35;
+  }
+  .combo b { color: var(--amber); }
+  footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    margin-top: 22px;
+    color: var(--muted);
+    font-size: 19px;
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <header>
+    <div>
+      <h1>Night Factory Defence<br>Relic Cheat Sheet</h1>
+      <div class="subtitle">Waveクリア報酬: 3択から1つ選ぶ / 系統タグとシナジーでビルドを伸ばす</div>
+    </div>
+    <div class="legend">
+      <span class="pill">🔫 銃</span>
+      <span class="pill">🏰 拠点</span>
+      <span class="pill">🏭 工場</span>
+      <span class="pill">🏃 遊撃</span>
+      <span class="pill">🎲 賭博</span>
+    </div>
+  </header>
+
+  <section class="grid">
+    <div class="section">Ⅰ Common / 序盤の土台</div>
+
+    <article class="card common"><div class="top"><div class="icon">🏃</div><div class="name">俊足</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">遊撃</span><span class="stack">Stack ○</span></div><div class="effect">移動速度 +15%</div></article>
+    <article class="card common"><div class="top"><div class="icon">💪</div><div class="name">硬い体</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">遊撃</span><span class="stack">Stack ○</span></div><div class="effect">最大HP +30・全回復</div><div class="small">硬い体 + 背水 → 火事場</div></article>
+    <article class="card common"><div class="top"><div class="icon">🔫</div><div class="name">増し弾</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">銃</span><span class="stack">Stack ○</span></div><div class="effect">弾のダメージ +20%</div></article>
+    <article class="card common"><div class="top"><div class="icon">⚙</div><div class="name">軽量装備</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">銃</span><span class="stack">Stack ○</span></div><div class="effect">攻撃速度 +15%</div></article>
+
+    <article class="card common"><div class="top"><div class="icon">📦</div><div class="name">予備弾倉</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">工場</span><span class="stack">Stack ○</span></div><div class="effect">弾薬 +40 即時</div></article>
+    <article class="card common"><div class="top"><div class="icon">⛏</div><div class="name">鉄鉱直送</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">工場</span><span class="stack">Stack ○</span></div><div class="effect">採掘速度 +25%</div></article>
+    <article class="card common"><div class="top"><div class="icon">▣</div><div class="name">補強板</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ○</span></div><div class="effect">壁の最大HP +30%</div></article>
+    <article class="card common"><div class="top"><div class="icon">◎</div><div class="name">照準器</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ○</span></div><div class="effect">タレット射程 +15%</div></article>
+
+    <article class="card common"><div class="top"><div class="icon">✚</div><div class="name">応急キット</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">遊撃</span><span class="stack">Stack ×</span></div><div class="effect">HP全回復 + 一時シールド30</div></article>
+    <article class="card common"><div class="top"><div class="icon">◌</div><div class="name">節水</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">工場</span><span class="stack">Stack ×</span></div><div class="effect">弾薬消費 -15%</div></article>
+    <article class="card common"><div class="top"><div class="icon">🔧</div><div class="name">手早い建設</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">工場</span><span class="stack">Stack ×</span></div><div class="effect">建設の鉄コスト -15%</div></article>
+    <article class="card common"><div class="top"><div class="icon">⚡</div><div class="name">アドレナリン</div><div class="rarity">Ⅰ</div></div><div class="meta"><span class="tag">遊撃</span><span class="stack">Stack ×</span></div><div class="effect">夜開始10秒 攻撃速度 +30%</div></article>
+
+    <div class="section">Ⅱ Rare / ビルドの方向を決める</div>
+
+    <article class="card rare"><div class="top"><div class="icon">🔫</div><div class="name">速射</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">銃</span><span class="stack">Stack ○</span></div><div class="effect">攻撃速度 +30%</div><div class="small">速射 + 跳弾 → 弾幕</div></article>
+    <article class="card rare"><div class="top"><div class="icon">📡</div><div class="name">砲術</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ○</span></div><div class="effect">タレット射程 +25%</div><div class="small">砲術 + 連射砲 → 管制</div></article>
+    <article class="card rare"><div class="top"><div class="icon">♨</div><div class="name">連射砲</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ○</span></div><div class="effect">タレット発射速度 +30%</div><div class="small">砲術 + 連射砲 → 管制</div></article>
+    <article class="card rare"><div class="top"><div class="icon">▣</div><div class="name">強化壁</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ○</span></div><div class="effect">壁の最大HP +50%・全回復</div><div class="small">強化壁 + 自己修復壁 → 城塞</div></article>
+
+    <article class="card rare"><div class="top"><div class="icon">⛏</div><div class="name">血の採掘</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">工場</span><span class="stack">Stack ○</span></div><div class="effect">採掘速度 +50%</div><div class="small">血の採掘 + 効率炉 → 自動化</div></article>
+    <article class="card rare"><div class="top"><div class="icon">🔥</div><div class="name">効率炉</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">工場</span><span class="stack">Stack ○</span></div><div class="effect">加工炉の弾薬生産 +1</div><div class="small">血の採掘 + 効率炉 → 自動化</div></article>
+    <article class="card rare"><div class="top"><div class="icon">❤️</div><div class="name">背水</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">遊撃 / 銃</span><span class="stack">Stack ×</span></div><div class="effect">HPが減るほど攻撃速度↑ 最大+50%</div><div class="small">硬い体 + 背水 → 火事場</div></article>
+    <article class="card rare"><div class="top"><div class="icon">🛠</div><div class="name">自己修復壁</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ×</span></div><div class="effect">壁が昼の間に自動回復</div><div class="small">強化壁 + 自己修復壁 → 城塞</div></article>
+
+    <article class="card rare"><div class="top"><div class="icon">🔥</div><div class="name">炎上弾</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">銃</span><span class="stack">Stack ×</span></div><div class="effect">攻撃に継続ダメージを付与</div><div class="small">炎上弾 + 掃射 → 火炎放射</div></article>
+    <article class="card rare"><div class="top"><div class="icon">🌙</div><div class="name">夜勤</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">工場</span><span class="stack">Stack ×</span></div><div class="effect">夜の間だけ生産速度 +50%</div><div class="small">ゾンビ燃料 + 夜勤 → 前線工場</div></article>
+    <article class="card rare"><div class="top"><div class="icon">🩸</div><div class="name">吸血装置</div><div class="rarity">Ⅱ</div></div><div class="meta"><span class="tag">遊撃</span><span class="stack">Stack ○</span></div><div class="effect">敵撃破で HP +1</div><div class="small">血の代償 + 吸血装置 → 修羅</div></article>
+
+    <div class="section">Ⅲ Epic / 取るとビルドが尖る</div>
+
+    <article class="card epic"><div class="top"><div class="icon">➤</div><div class="name">跳弾</div><div class="rarity">Ⅲ</div></div><div class="meta"><span class="tag">銃</span><span class="stack">Stack ○</span></div><div class="effect">弾が敵を +1体 貫通</div><div class="small">速射 + 跳弾 → 弾幕</div></article>
+    <article class="card epic"><div class="top"><div class="icon">≋</div><div class="name">掃射</div><div class="rarity">Ⅲ</div></div><div class="meta"><span class="tag">銃</span><span class="stack">Stack ×</span></div><div class="effect">プレイヤーの弾が扇状に3発</div><div class="small">炎上弾 + 掃射 → 火炎放射</div></article>
+    <article class="card epic"><div class="top"><div class="icon">Ⅱ</div><div class="name">二連装</div><div class="rarity">Ⅲ</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ×</span></div><div class="effect">タレットが2連射</div></article>
+    <article class="card epic"><div class="top"><div class="icon">✦</div><div class="name">弾道学</div><div class="rarity">Ⅲ</div></div><div class="meta"><span class="tag">銃</span><span class="stack">Stack ○</span></div><div class="effect">クリティカル20% 与ダメ2倍</div></article>
+
+    <article class="card epic"><div class="top"><div class="icon">☣</div><div class="name">ゾンビ燃料</div><div class="rarity">Ⅲ</div></div><div class="meta"><span class="tag">工場</span><span class="stack">Stack ×</span></div><div class="effect">撃破した敵が鉄/弾薬を落とす</div><div class="small">ゾンビ燃料 + 夜勤 → 前線工場</div></article>
+    <article class="card epic"><div class="top"><div class="icon">▦</div><div class="name">増設架台</div><div class="rarity">Ⅲ</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ×</span></div><div class="effect">隣接する味方建物ごとにタレット威力 +8%</div></article>
+
+    <div class="section">★ Legendary + Gamble / ルールを変える</div>
+
+    <article class="card legend"><div class="top"><div class="icon">⚡</div><div class="name">オーバードライブ</div><div class="rarity">★</div></div><div class="meta"><span class="tag">拠点 / 賭博</span><span class="stack">Stack ×</span></div><div class="effect">夜の間タレット弾薬消費0 / 昼の生産 -30%</div></article>
+    <article class="card legend"><div class="top"><div class="icon">⛓</div><div class="name">増殖弾</div><div class="rarity">★</div></div><div class="meta"><span class="tag">銃</span><span class="stack">Stack ×</span></div><div class="effect">敵撃破で弾が次の敵へ連鎖 最大3回</div></article>
+    <article class="card legend"><div class="top"><div class="icon">🏰</div><div class="name">要塞化</div><div class="rarity">★</div></div><div class="meta"><span class="tag">拠点</span><span class="stack">Stack ×</span></div><div class="effect">全壁が自動修復 + 接触敵に反射ダメージ</div></article>
+    <article class="card gamble"><div class="top"><div class="icon">🩸</div><div class="name">血の代償</div><div class="rarity">🎲</div></div><div class="meta"><span class="tag">賭博</span><span class="stack">Stack ×</span></div><div class="effect">最大HP -50% / 全ダメージ +60%</div><div class="small">血の代償 + 吸血装置 → 修羅</div></article>
+    <article class="card gamble"><div class="top"><div class="icon">🎯</div><div class="name">一点賭け</div><div class="rarity">🎲</div></div><div class="meta"><span class="tag">賭博</span><span class="stack">Stack ×</span></div><div class="effect">弾薬満タン中 与ダメ +50% / 切れると0%</div></article>
+  </section>
+
+  <section class="synergy">
+    <h2>Synergy / 進化メモ</h2>
+    <div class="synergy-grid">
+      <div class="combo"><b>速射 + 跳弾 = 弾幕</b><br>貫通が無限化</div>
+      <div class="combo"><b>砲術 + 連射砲 = 管制</b><br>タレットが2体同時狙撃</div>
+      <div class="combo"><b>血の採掘 + 効率炉 = 自動化</b><br>鉄上限時に弾薬へ変換</div>
+      <div class="combo">炎上弾 + 掃射 = 火炎放射<br>扇状攻撃が炎上フィールド化</div>
+      <div class="combo">硬い体 + 背水 = 火事場<br>低HP時に移動速度も強化</div>
+      <div class="combo">ゾンビ燃料 + 夜勤 = 前線工場<br>夜の敵ドロップ量 +100%</div>
+      <div class="combo">強化壁 + 自己修復壁 = 城塞<br>壁が夜でも徐々に回復</div>
+      <div class="combo">血の代償 + 吸血装置 = 修羅<br>撃破時HP回復が3倍</div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Source: docs/12_relic-catalog.md / commit 9b1cf5d</div>
+    <div>Note: catalog title says 32 relics, table contains 32 standard + 2 gamble entries.</div>
+  </footer>
+</main>
+</body>
+</html>
