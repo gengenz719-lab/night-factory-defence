@@ -1,0 +1,55 @@
+# GitHub Pages を「Actions方式」で安定配信する。
+# legacy(ブランチ全体をJekyllで処理)をやめ、配信するものだけをアップロードする。
+# これにより unity/ や docs/ を巻き込まず、デプロイ詰まりを防ぐ。
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+    # 配信物が変わったときだけ再デプロイする
+    paths:
+      - 'index.html'
+      - 'play/**'
+      - 'prototype/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch: # 手動実行も可
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時に走らせない(古いデプロイはキャンセル)
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 配信するものだけを _site に集める
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+          cp -r play _site/play
+          cp -r prototype _site/prototype
+          touch _site/.nojekyll   # Jekyll処理を無効化(静的配信)
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
