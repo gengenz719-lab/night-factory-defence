@@ -17,6 +17,12 @@ namespace NightFactoryDefence
         AmmoNow,       // 即時に弾薬を加算
     }
 
+    // レアリティ(取得段階)。出現重みに使う。
+    public enum NfdRelicRarity { Common, Rare, Epic, Legendary }
+
+    // 系統タグ(将来のビルド傾斜・ジョブプール用。今は分類のみ)。
+    public enum NfdRelicTag { Gun, Base, Factory, Skirmish, Gamble }
+
     // レリック1種。config.js の RELICS の1エントリに相当。
     [CreateAssetMenu(fileName = "RelicData", menuName = "Night Factory Defence/Relic Data")]
     public sealed class NfdRelicData : ScriptableObject
@@ -26,5 +32,9 @@ namespace NightFactoryDefence
         [TextArea] public string description = "";
         public NfdRelicEffectType effectType;
         public float value = 1f;
+
+        public NfdRelicRarity rarity = NfdRelicRarity.Common;
+        public NfdRelicTag tag = NfdRelicTag.Gun;
+        public bool stackable = true; // 重ねて取れるか(false=1回のみ)
     }
 }

@@ -17,3 +17,6 @@ MonoBehaviour:
   description: "\u3044\u307E\u3059\u3050\u5F3E\u85AC +80"
   effectType: 9
   value: 80
+  rarity: 0
+  tag: 2
+  stackable: 1

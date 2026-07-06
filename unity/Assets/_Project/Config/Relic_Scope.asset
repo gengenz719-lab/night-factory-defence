@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 493faa07d8a2ca14c8f6f315f93d34d8, type: 3}
-  m_Name: Relic_Tough
+  m_Name: Relic_Scope
   m_EditorClassIdentifier: Assembly-CSharp::NightFactoryDefence.NfdRelicData
-  id: tough
-  displayName: "\u786C\u3044\u4F53"
-  description: "\u6700\u5927HP +30\u3001\u5168\u56DE\u5FA9"
-  effectType: 3
-  value: 30
+  id: scope
+  displayName: "\u7167\u6E96\u5668"
+  description: "\u30BF\u30EC\u30C3\u30C8\u5C04\u7A0B +15%"
+  effectType: 4
+  value: 1.15
   rarity: 0
-  tag: 3
+  tag: 1
   stackable: 1

@@ -17,3 +17,6 @@ MonoBehaviour:
   description: "\u52A0\u5DE5\u7089\u306E\u5F3E\u85AC\u751F\u7523 +1"
   effectType: 7
   value: 1
+  rarity: 1
+  tag: 2
+  stackable: 1

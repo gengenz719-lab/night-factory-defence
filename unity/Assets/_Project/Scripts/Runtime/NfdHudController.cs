@@ -497,8 +497,16 @@ namespace NightFactoryDefence
                     relicCards[i].style.display = has ? DisplayStyle.Flex : DisplayStyle.None;
                     if (has)
                     {
-                        relicNameLabels[i].text = s.RelicChoices[i].displayName;
-                        relicDescLabels[i].text = s.RelicChoices[i].description;
+                        var relic = s.RelicChoices[i];
+                        // 所持数(スタック)を名前に付ける
+                        var owned = 0;
+                        foreach (var id in s.OwnedRelicIds) if (id == relic.id) owned++;
+                        relicNameLabels[i].text = owned > 0 ? $"{relic.displayName}  Lv{owned + 1}" : relic.displayName;
+                        relicDescLabels[i].text = relic.description;
+                        // レアリティで縁取り
+                        var rc = RarityColor(relic.rarity);
+                        SetBorder(relicCards[i], rc, 2);
+                        relicNameLabels[i].style.color = rc;
                     }
                 }
             }
@@ -615,6 +623,17 @@ namespace NightFactoryDefence
             fill.style.borderTopLeftRadius = fill.style.borderBottomLeftRadius = 2;
             bg.Add(fill);
             return fill;
+        }
+
+        static Color RarityColor(NfdRelicRarity rarity)
+        {
+            switch (rarity)
+            {
+                case NfdRelicRarity.Rare: return new Color(0.35f, 0.7f, 1f);   // 青
+                case NfdRelicRarity.Epic: return new Color(0.75f, 0.45f, 1f);  // 紫
+                case NfdRelicRarity.Legendary: return new Color(1f, 0.82f, 0.3f); // 金
+                default: return new Color(0.75f, 0.8f, 0.85f);                 // コモン=灰
+            }
         }
 
         static void SetBorder(VisualElement e, Color c, float w)

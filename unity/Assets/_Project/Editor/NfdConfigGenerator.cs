@@ -66,19 +66,29 @@ namespace NightFactoryDefence.Editor
             player.hurtCooldown = 0.8f;
             EditorUtility.SetDirty(player);
 
-            // --- レリック10種 ---
+            // --- レリック(docs/12のレアリティ再配置。既存10種+新規コモン5種) ---
+            var C = NfdRelicRarity.Common; var R = NfdRelicRarity.Rare; var E = NfdRelicRarity.Epic;
+            var Gun = NfdRelicTag.Gun; var Base = NfdRelicTag.Base; var Fac = NfdRelicTag.Factory; var Sk = NfdRelicTag.Skirmish;
             var relics = new[]
             {
-                Relic("Relic_Pierce", "pierce", "跳弾", "弾が敵を1体貫通する", NfdRelicEffectType.Pierce, 1f),
-                Relic("Relic_Rapid", "rapid", "速射", "攻撃速度 +30%", NfdRelicEffectType.FireRate, 1.3f),
-                Relic("Relic_Swift", "swift", "俊足", "移動速度 +20%", NfdRelicEffectType.MoveSpeed, 1.2f),
-                Relic("Relic_Tough", "tough", "硬い体", "最大HP +30、全回復", NfdRelicEffectType.MaxHp, 30f),
-                Relic("Relic_Gunnery", "gunnery", "砲術", "タレット射程 +25%", NfdRelicEffectType.TurretRange, 1.25f),
-                Relic("Relic_Autofire", "autofire", "連射砲", "タレット発射速度 +30%", NfdRelicEffectType.TurretRate, 1.3f),
-                Relic("Relic_Hardwall", "hardwall", "強化壁", "壁の最大HP +50%(全回復)", NfdRelicEffectType.WallHp, 1.5f),
-                Relic("Relic_Furnace", "furnace", "効率炉", "加工炉の弾薬生産 +1", NfdRelicEffectType.SmelterBonus, 1f),
-                Relic("Relic_Bloodmine", "bloodmine", "血の採掘", "採掘速度 +50%", NfdRelicEffectType.MinerRate, 1.5f),
-                Relic("Relic_Ammobox", "ammobox", "弾薬箱", "いますぐ弾薬 +80", NfdRelicEffectType.AmmoNow, 80f),
+                // 既存10種(再配置)
+                Relic("Relic_Swift", "swift", "俊足", "移動速度 +20%", NfdRelicEffectType.MoveSpeed, 1.2f, C, Sk, true),
+                Relic("Relic_Tough", "tough", "硬い体", "最大HP +30、全回復", NfdRelicEffectType.MaxHp, 30f, C, Sk, true),
+                Relic("Relic_Ammobox", "ammobox", "弾薬箱", "いますぐ弾薬 +80", NfdRelicEffectType.AmmoNow, 80f, C, Fac, true),
+                Relic("Relic_Rapid", "rapid", "速射", "攻撃速度 +30%", NfdRelicEffectType.FireRate, 1.3f, R, Gun, true),
+                Relic("Relic_Gunnery", "gunnery", "砲術", "タレット射程 +25%", NfdRelicEffectType.TurretRange, 1.25f, R, Base, true),
+                Relic("Relic_Autofire", "autofire", "連射砲", "タレット発射速度 +30%", NfdRelicEffectType.TurretRate, 1.3f, R, Base, true),
+                Relic("Relic_Hardwall", "hardwall", "強化壁", "壁の最大HP +50%(全回復)", NfdRelicEffectType.WallHp, 1.5f, R, Base, true),
+                Relic("Relic_Furnace", "furnace", "効率炉", "加工炉の弾薬生産 +1", NfdRelicEffectType.SmelterBonus, 1f, R, Fac, true),
+                Relic("Relic_Bloodmine", "bloodmine", "血の採掘", "採掘速度 +50%", NfdRelicEffectType.MinerRate, 1.5f, R, Fac, true),
+                Relic("Relic_Pierce", "pierce", "跳弾", "弾が敵を1体貫通する", NfdRelicEffectType.Pierce, 1f, E, Gun, true),
+
+                // 新規コモン5種(既存の効果タイプを再利用=追加コード不要)
+                Relic("Relic_Scope", "scope", "照準器", "タレット射程 +15%", NfdRelicEffectType.TurretRange, 1.15f, C, Base, true),
+                Relic("Relic_LightGear", "light_gear", "軽量装備", "攻撃速度 +15%", NfdRelicEffectType.FireRate, 1.15f, C, Gun, true),
+                Relic("Relic_SpareMag", "spare_mag", "予備弾倉", "いますぐ弾薬 +40", NfdRelicEffectType.AmmoNow, 40f, C, Fac, true),
+                Relic("Relic_OreFeed", "ore_feed", "鉄鉱直送", "採掘速度 +25%", NfdRelicEffectType.MinerRate, 1.25f, C, Fac, true),
+                Relic("Relic_Plating", "plating", "補強板", "壁の最大HP +30%", NfdRelicEffectType.WallHp, 1.3f, C, Base, true),
             };
 
             // --- 全部まとめる GameConfig ---
@@ -125,7 +135,8 @@ namespace NightFactoryDefence.Editor
             return b;
         }
 
-        static NfdRelicData Relic(string file, string id, string name, string desc, NfdRelicEffectType type, float value)
+        static NfdRelicData Relic(string file, string id, string name, string desc, NfdRelicEffectType type, float value,
+            NfdRelicRarity rarity, NfdRelicTag tag, bool stackable)
         {
             var r = Asset<NfdRelicData>(file);
             r.id = id;
@@ -133,6 +144,9 @@ namespace NightFactoryDefence.Editor
             r.description = desc;
             r.effectType = type;
             r.value = value;
+            r.rarity = rarity;
+            r.tag = tag;
+            r.stackable = stackable;
             EditorUtility.SetDirty(r);
             return r;
         }

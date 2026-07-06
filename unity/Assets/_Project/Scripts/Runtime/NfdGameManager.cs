@@ -173,31 +173,62 @@ namespace NightFactoryDefence
             OfferRelics();
         }
 
-        // Waveクリア後に未取得のレリックから3枚を提示する
+        const int RelicStackCap = 3; // 同一レリックを重ねられる上限
+
+        // Waveクリア後にレアリティ重みで3枚を提示する(スタック可能なものは再提示される)
         void OfferRelics()
         {
-            var pool = config.relics != null
-                ? config.relics.Where(r => r != null && !State.OwnedRelicIds.Contains(r.id)).ToList()
+            State.RelicChoices.Clear();
+
+            var candidates = config.relics != null
+                ? config.relics.Where(r => r != null && CanOffer(r)).ToList()
                 : new System.Collections.Generic.List<NfdRelicData>();
 
-            // シャッフルして先頭3枚
-            for (var i = pool.Count - 1; i > 0; i--)
+            if (candidates.Count == 0)
             {
-                var j = Random.Range(0, i + 1);
-                (pool[i], pool[j]) = (pool[j], pool[i]);
-            }
-
-            State.RelicChoices.Clear();
-            for (var i = 0; i < pool.Count && i < 3; i++) State.RelicChoices.Add(pool[i]);
-
-            if (State.RelicChoices.Count == 0)
-            {
-                // 全部取得済みなら選択を飛ばして次の昼へ
-                AdvanceToNextDay();
+                AdvanceToNextDay(); // もう出せるものが無い
                 return;
             }
 
+            for (var slot = 0; slot < 3 && State.RelicChoices.Count < candidates.Count; slot++)
+            {
+                var rarity = RollRarity(State.WaveNumber);
+                // そのレアリティで未提示のもの。無ければレアリティ不問でフォールバック
+                var pool = candidates.Where(r => r.rarity == rarity && !State.RelicChoices.Contains(r)).ToList();
+                if (pool.Count == 0) pool = candidates.Where(r => !State.RelicChoices.Contains(r)).ToList();
+                if (pool.Count == 0) break;
+                State.RelicChoices.Add(pool[Random.Range(0, pool.Count)]);
+            }
+
+            if (State.RelicChoices.Count == 0)
+            {
+                AdvanceToNextDay();
+                return;
+            }
             State.ChoosingRelic = true;
+        }
+
+        // まだ提示してよいか(未取得、またはスタック可能で上限未満)
+        bool CanOffer(NfdRelicData r)
+        {
+            var owned = 0;
+            foreach (var id in State.OwnedRelicIds) if (id == r.id) owned++;
+            var cap = r.stackable ? RelicStackCap : 1;
+            return owned < cap;
+        }
+
+        // Wave帯ごとのレアリティ重み抽選(docs/12)
+        NfdRelicRarity RollRarity(int wave)
+        {
+            int[] w = wave <= 3 ? new[] { 70, 28, 2, 0 }
+                    : wave <= 6 ? new[] { 45, 40, 14, 1 }
+                                : new[] { 20, 40, 33, 7 };
+            var total = w[0] + w[1] + w[2] + w[3];
+            var roll = Random.Range(0, total);
+            if (roll < w[0]) return NfdRelicRarity.Common;
+            if (roll < w[0] + w[1]) return NfdRelicRarity.Rare;
+            if (roll < w[0] + w[1] + w[2]) return NfdRelicRarity.Epic;
+            return NfdRelicRarity.Legendary;
         }
 
         // 3択のカードを選んだときに呼ばれる(HUDのボタンから)

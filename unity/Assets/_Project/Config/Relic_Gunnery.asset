@@ -17,3 +17,6 @@ MonoBehaviour:
   description: "\u30BF\u30EC\u30C3\u30C8\u5C04\u7A0B +25%"
   effectType: 4
   value: 1.25
+  rarity: 1
+  tag: 1
+  stackable: 1
