@@ -13,3 +13,7 @@ node_modules/
 # Unityエディタが自動生成するスクリーンショット(プロジェクト素材ではない)
 unity/Assets/Screenshots/
 unity/Assets/Screenshots.meta
+
+# WebGLビルドが生成するテスト実行の一時ファイル(プロジェクト素材ではない)
+unity/Assets/Resources/PerformanceTestRun*.json
+unity/Assets/Resources/PerformanceTestRun*.json.meta
