@@ -75,6 +75,9 @@ namespace NightFactoryDefence
                 return;
             }
 
+            // 被弾ビネットは常に減衰させる
+            State.CoreHitFlash = Mathf.MoveTowards(State.CoreHitFlash, 0f, Time.deltaTime * 2.5f);
+
             if (State.IsRunEnded) return;
 
             // レリック選択中はゲーム進行を止める(プレイヤーがカードを選ぶまで)
@@ -347,7 +350,13 @@ namespace NightFactoryDefence
             if (amount <= 0f || State.CoreHp <= 0f) return;
 
             State.CoreHp = Mathf.Max(0f, State.CoreHp - amount);
-            if (State.CoreHp <= 0f) State.Result = NfdRunResult.Lost;
+            State.CoreHitFlash = Mathf.Min(1f, State.CoreHitFlash + amount * 0.05f); // 赤ビネット
+            NfdCameraShake.Instance?.AddTrauma(amount * 0.02f);                       // 画面揺れ
+            if (State.CoreHp <= 0f)
+            {
+                State.Result = NfdRunResult.Lost;
+                NfdCameraShake.Instance?.AddTrauma(0.8f); // 破壊で大きく揺らす
+            }
         }
 
         // --- 敵の名簿 ---

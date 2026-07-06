@@ -221,8 +221,11 @@ namespace NightFactoryDefence.Editor
             CreateSpriteChild(root.transform, "base", Sprite("square"), Vector3.zero, new Vector2(2.25f, 2.25f), ColorFromHex("#17120b"), 31);
             CreateSpriteChild(root.transform, "plate", Sprite("diamond"), Vector3.zero, new Vector2(1.72f, 1.72f), ColorFromHex("#2c2412"), 32);
             CreateSpriteChild(root.transform, "reactor", Sprite("diamond"), Vector3.zero, new Vector2(1.1f, 1.1f), ColorFromHex("#ffd75e"), 33);
-            CreateSpriteChild(root.transform, "cyan heart", Sprite("circle"), Vector3.zero, new Vector2(0.72f, 0.72f), ColorFromHex("#3fd2ff"), 34);
+            var heart = CreateSpriteChild(root.transform, "cyan heart", Sprite("circle"), Vector3.zero, new Vector2(0.72f, 0.72f), ColorFromHex("#3fd2ff"), 34);
             CreateSpriteChild(root.transform, "orange heat", Sprite("circle"), Vector3.zero, new Vector2(0.36f, 0.36f), ColorFromHex("#ff6a1a"), 35);
+
+            var pulse = root.AddComponent<NfdCorePulse>(); // 鼓動
+            SetSerialized(pulse, "pulseTarget", heart.transform);
             return core;
         }
 
@@ -491,6 +494,7 @@ namespace NightFactoryDefence.Editor
             camera.backgroundColor = ColorFromHex("#05070b");
             camera.clearFlags = CameraClearFlags.SolidColor;
             go.AddComponent<AudioListener>();
+            go.AddComponent<NfdCameraShake>(); // コア被弾で揺れる
             return camera;
         }
 

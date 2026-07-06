@@ -44,6 +44,7 @@ namespace NightFactoryDefence
         // 拠点コア
         public float CoreHp;
         public float CoreMaxHp;
+        public float CoreHitFlash; // 被弾直後に上がり、時間で減衰(赤ビネット用)
 
         // プレイヤー(HUD表示用のミラー。書き込むのはGameManager経由)
         public float PlayerHp;

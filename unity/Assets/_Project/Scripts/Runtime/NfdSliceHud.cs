@@ -13,6 +13,7 @@ namespace NightFactoryDefence
             if (manager == null) return;
             var state = manager.State;
 
+            DrawDangerVignette(state); // 最背面(HUDの下)
             DrawTopLeft(state);
             DrawTopCenter(state);
             DrawBottomLeft(state);
@@ -176,6 +177,35 @@ namespace NightFactoryDefence
             GUI.Label(new Rect(0, Screen.height * 0.44f, Screen.width, 30), $"到達 WAVE {reached} / {state.TotalWaves}", statStyle);
             GUI.Label(new Rect(0, Screen.height * 0.50f, Screen.width, 30), $"撃破 {state.Kills}   レリック {state.OwnedRelicIds.Count} 個", statStyle);
             GUI.Label(new Rect(0, Screen.height * 0.62f, Screen.width, 30), "R でリスタート", hintStyle);
+        }
+
+        // 危機の赤ビネット: 被弾直後 + コア低HPで画面端が赤く脈打つ
+        static void DrawDangerVignette(NfdGameState state)
+        {
+            var lowHp = state.CoreMaxHp > 0f ? 1f - Mathf.Clamp01(state.CoreHp / state.CoreMaxHp) : 0f;
+            var lowPulse = 0f;
+            if (lowHp > 0.7f)
+            {
+                // 残り30%以下で赤く脈打つ。減るほど強く
+                lowPulse = (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6f)) * ((lowHp - 0.7f) / 0.3f);
+            }
+            var danger = Mathf.Clamp01(Mathf.Max(state.CoreHitFlash, lowPulse));
+            if (danger <= 0.02f) return;
+
+            var a = danger * 0.5f;
+            var red = new Color(0.8f, 0.1f, 0.1f, a);
+            var w = Screen.width;
+            var h = Screen.height;
+            var t = Mathf.Min(w, h) * 0.14f; // 端の帯の太さ
+
+            var prev = GUI.color;
+            GUI.color = red;
+            var tex = Texture2D.whiteTexture;
+            GUI.DrawTexture(new Rect(0, 0, w, t), tex);        // 上
+            GUI.DrawTexture(new Rect(0, h - t, w, t), tex);    // 下
+            GUI.DrawTexture(new Rect(0, 0, t, h), tex);        // 左
+            GUI.DrawTexture(new Rect(w - t, 0, t, h), tex);    // 右
+            GUI.color = prev;
         }
 
         static void DrawBar(Rect rect, float frac, Color fill)
