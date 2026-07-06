@@ -1,0 +1,15 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="project://database/Assets/UI/MainMenu.uss" />
+    <ui:VisualElement name="root" class="root">
+        <ui:VisualElement name="brand" class="brand">
+            <ui:VisualElement name="emblem" class="emblem" />
+            <ui:VisualElement class="wordmark">
+                <ui:Label text="NIGHT FACTORY" class="t-main" />
+                <ui:Label text="DEFENCE" class="t-sub" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Label text="KAGYO GAMES" class="studio" />
+        <ui:Label text="BUILD BY DAY    ·    DEFEND BY NIGHT" class="subtitle" />
+        <ui:Button text="START" name="startBtn" class="big-btn" />
+    </ui:VisualElement>
+</ui:UXML>

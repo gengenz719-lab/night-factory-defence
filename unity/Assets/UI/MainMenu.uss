@@ -1,0 +1,65 @@
+.root {
+    flex-grow: 1;
+    background-color: #06080c;
+    align-items: center;
+    justify-content: center;
+}
+.brand {
+    flex-direction: row;
+    align-items: center;
+    padding: 18px 34px;
+    border-width: 1px;
+    border-color: #3d4b5c;
+    background-color: #10161ee6;
+    margin-bottom: 18px;
+}
+.emblem {
+    width: 46px;
+    height: 46px;
+    border-radius: 23px;
+    border-width: 6px;
+    border-color: #ff6a1a;
+    background-color: #0f141b;
+    margin-right: 18px;
+}
+.t-main {
+    -unity-font-style: bold;
+    font-size: 58px;
+    letter-spacing: 3px;
+    color: #d7dee7;
+}
+.t-sub {
+    -unity-font-style: bold;
+    font-size: 30px;
+    letter-spacing: 12px;
+    color: #ff6a1a;
+}
+.studio {
+    -unity-font-style: bold;
+    font-size: 13px;
+    letter-spacing: 6px;
+    color: #3fd2ff;
+    padding: 5px 20px;
+    border-width: 1px;
+    border-color: #2a7d9c;
+    background-color: #3fd2ff14;
+    margin-bottom: 12px;
+}
+.subtitle {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: #8b97a8;
+    margin-bottom: 26px;
+}
+.big-btn {
+    -unity-font-style: bold;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: #1a0d02;
+    background-color: #ff6a1a;
+    border-width: 0;
+    padding: 14px 56px;
+}
+.big-btn:hover {
+    background-color: #ff8c3a;
+}
