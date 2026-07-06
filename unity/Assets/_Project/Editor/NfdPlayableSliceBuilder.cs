@@ -483,7 +483,10 @@ namespace NightFactoryDefence.Editor
             var hud = new GameObject("HUD");
             var uiDoc = hud.AddComponent<UnityEngine.UIElements.UIDocument>();
             uiDoc.panelSettings = LoadOrCreateHudPanel();
-            hud.AddComponent<NfdHudController>();
+            var hudCtrl = hud.AddComponent<NfdHudController>();
+            var jp = AssetDatabase.LoadAssetAtPath<Font>("Assets/_Project/UI/Fonts/NfdJp.ttf");
+            if (jp == null) Debug.LogWarning("日本語フォント NfdJp.ttf が見つからない");
+            SetSerialized(hudCtrl, "jpFontSource", jp);
         }
 
         static UnityEngine.UIElements.PanelSettings LoadOrCreateHudPanel()

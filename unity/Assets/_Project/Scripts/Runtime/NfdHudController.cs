@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.TextCore.Text;
 using UnityEngine.UIElements;
 
 namespace NightFactoryDefence
@@ -19,6 +20,10 @@ namespace NightFactoryDefence
         static readonly Color TextDim = new Color(0.72f, 0.78f, 0.85f);
 
         UIDocument doc;
+
+        // 日本語フォント(WebGLではデフォルトフォントにCJKが無いため必須)
+        [SerializeField] Font jpFontSource;
+        FontAsset jpFont;
 
         // 更新対象の要素
         Label phaseLabel, timeLabel, coreLabel, waveLabel, waveSubLabel, ironLabel, ammoLabel, playerHpLabel;
@@ -67,6 +72,7 @@ namespace NightFactoryDefence
             label.style.color = new Color(1f, 0.95f, 0.6f);
             label.style.unityFontStyleAndWeight = FontStyle.Bold;
             label.pickingMode = PickingMode.Ignore;
+            ApplyFont(label);
             floatingLayer.Add(label);
             floats.Add(new FloatNum { label = label, world = worldPos + new Vector3(Random.Range(-0.2f, 0.2f), 0.3f, 0f), timer = 0f, life = 0.6f });
         }
@@ -124,6 +130,9 @@ namespace NightFactoryDefence
             if (doc == null) doc = GetComponent<UIDocument>();
             var root = doc != null ? doc.rootVisualElement : null;
             if (root == null) return; // UIDocumentがまだ初期化前
+
+            // 日本語フォントアセットを用意(TTFから動的生成)
+            if (jpFont == null && jpFontSource != null) jpFont = FontAsset.CreateFontAsset(jpFontSource);
 
             root.Clear();
             root.style.flexGrow = 1f;
@@ -550,15 +559,22 @@ namespace NightFactoryDefence
             return o;
         }
 
-        static Label MakeLabel(VisualElement parent, string text, int size, Color color, bool bold = false)
+        Label MakeLabel(VisualElement parent, string text, int size, Color color, bool bold = false)
         {
             var l = new Label(text);
             l.style.fontSize = size;
             l.style.color = color;
             l.style.unityFontStyleAndWeight = bold ? FontStyle.Bold : FontStyle.Normal;
             l.pickingMode = PickingMode.Ignore;
+            ApplyFont(l);
             parent.Add(l);
             return l;
+        }
+
+        // 日本語フォントをラベルに適用する
+        void ApplyFont(Label l)
+        {
+            if (jpFont != null) l.style.unityFontDefinition = new StyleFontDefinition(jpFont);
         }
 
         VisualElement MakeBarBg(VisualElement parent)
