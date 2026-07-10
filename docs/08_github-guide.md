@@ -29,7 +29,11 @@ cd night-factory-defence
 
 ### 3. 遊ぶ
 
-`prototype/index.html` をブラウザで開くだけ。インストール不要。
+いちばん簡単なのはブラウザ版(インストール不要):
+https://gengenz719-lab.github.io/night-factory-defence/godot-play/
+
+クローンしたリポジトリから遊ぶなら `godot/PLAY_TEST.bat` をダブルクリック
+(初回はGodot 4.7を `.tools/godot-4.7/` に配置する。手順はAIに聞けば教えてくれる)。
 
 ## 毎回の作業の流れ(超重要・これだけ守る)
 

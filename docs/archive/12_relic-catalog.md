@@ -1,8 +1,11 @@
+> **📦 アーカイブ(旧・工場防衛版)** — 本書は旧ゲーム「トップダウン工場防衛」時代のドキュメントです。
+> 現行はGodot版「移動車両型・協力Waveサバイバル」であり、[13_godot-redevelopment-spec.md](../13_godot-redevelopment-spec.md) 以降が正です。(アーカイブ日: 2026-07-11)
+
 # レリック設計集(カタログ v2) — 名前・効果まで確定した叩き台
 
 > 実装前のデザイン。数値・採否はレビューで調整する。OK後に NfdRelicData を拡張して実装。
 > 着想元: **Vampire Survivors**(進化・パッシブ積み)/ **Brotato**(タグ・セット・リスク付き)/ **Slay the Spire**(レアリティ・シナジー・アーキタイプ)。
-> 関連: [07_ideas.md](07_ideas.md) / [00_game-constitution.md](00_game-constitution.md)
+> 関連: [07_ideas.md](../07_ideas.md) / [00_game-constitution.md](00_game-constitution.md)
 
 ## 1. 設計思想
 

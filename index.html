@@ -2,18 +2,30 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Night Factory Defence - Kagyo games</title>
-<meta http-equiv="refresh" content="0; url=play/">
-<link rel="canonical" href="play/">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kagyo games - テストプレイ</title>
 <style>
   body { background:#0d0f14; color:#e6e8ee; font-family:sans-serif;
          display:flex; flex-direction:column; align-items:center; justify-content:center;
-         height:100vh; margin:0; gap:16px; }
-  a { color:#7fd0ff; }
+         min-height:100vh; margin:0; gap:20px; padding:24px; box-sizing:border-box; }
+  h1 { font-size:1.3rem; margin:0; text-align:center; }
+  p { margin:0; color:#9aa3b2; text-align:center; }
+  a.main { display:block; background:#2f6feb; color:#fff; text-decoration:none;
+           padding:16px 40px; border-radius:10px; font-size:1.1rem; font-weight:bold; }
+  a.main:hover { background:#3d7df5; }
+  .sub { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
+  .sub a { color:#7fd0ff; font-size:0.9rem; }
+  .note { font-size:0.8rem; color:#5c6572; }
 </style>
 </head>
 <body>
-  <div>ゲーム画面へ移動しています…</div>
-  <div>自動で移動しない場合は <a href="play/">こちらをクリック</a></div>
+  <h1>移動車両型・協力Waveサバイバル(開発中)</h1>
+  <p>走り続ける車両の中を動き回り、改装しながらゾンビWaveを耐える協力ローグライト。</p>
+  <a class="main" href="godot-play/">▶ 最新テストプレイ版で遊ぶ(Godot版)</a>
+  <div class="sub">
+    <a href="play/">旧: 工場防衛 Unity版</a>
+    <a href="prototype/">旧: 工場防衛 HTML5プロトタイプ</a>
+  </div>
+  <p class="note">旧2作は前コンセプト(凍結)のアーカイブです。</p>
 </body>
 </html>
