@@ -10,6 +10,13 @@ Desktop.ini
 # 将来 node を使う場合
 node_modules/
 
+# ローカル開発ツール（Godot本体など。リポジトリには含めない）
+.tools/
+
+# Godotが生成するインポート・キャッシュ
+godot/.godot/
+godot/export.cfg
+
 # Unityエディタが自動生成するスクリーンショット(プロジェクト素材ではない)
 unity/Assets/Screenshots/
 unity/Assets/Screenshots.meta

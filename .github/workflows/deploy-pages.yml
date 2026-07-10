@@ -11,6 +11,7 @@ on:
       - 'index.html'
       - 'play/**'
       - 'prototype/**'
+      - 'godot-play/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch: # 手動実行も可
 
@@ -40,6 +41,7 @@ jobs:
           cp index.html _site/index.html
           cp -r play _site/play
           cp -r prototype _site/prototype
+          cp -r godot-play _site/godot-play
           touch _site/.nojekyll   # Jekyll処理を無効化(静的配信)
 
       - name: Setup Pages
