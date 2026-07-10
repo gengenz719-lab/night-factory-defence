@@ -4,6 +4,8 @@ extends Node2D
 signal shoot_requested(origin: Vector2, direction: Vector2, damage: float)
 signal health_changed
 
+const BODY_TEXTURE: Texture2D = preload("res://assets/art/actors/crew_survivor.png")
+const RIFLE_TEXTURE: Texture2D = preload("res://assets/art/actors/crew_rifle.png")
 const HALF_HEIGHT: float = 23.0
 const MOVE_SPEED: float = 250.0
 const JUMP_SPEED: float = 520.0
@@ -25,6 +27,26 @@ var is_downed: bool = false
 var _climb_target_level: int = -1
 var _is_repairing: bool = false
 var aim_position: Vector2 = Vector2.RIGHT
+var _body_sprite: Sprite2D
+var _weapon_sprite: Sprite2D
+
+
+func _ready() -> void:
+	_body_sprite = Sprite2D.new()
+	_body_sprite.texture = BODY_TEXTURE
+	var body_scale: float = 90.0 / float(BODY_TEXTURE.get_height())
+	_body_sprite.scale = Vector2(body_scale, body_scale)
+	_body_sprite.position = Vector2(0.0, HALF_HEIGHT - 45.0)
+	_body_sprite.z_index = -1
+	add_child(_body_sprite)
+
+	_weapon_sprite = Sprite2D.new()
+	_weapon_sprite.texture = RIFLE_TEXTURE
+	var weapon_scale: float = 58.0 / float(RIFLE_TEXTURE.get_width())
+	_weapon_sprite.scale = Vector2(weapon_scale, weapon_scale)
+	_weapon_sprite.z_index = 1
+	add_child(_weapon_sprite)
+	_update_visuals()
 
 
 func setup(target_vehicle: SurvivalVehicle) -> void:
@@ -43,10 +65,12 @@ func _physics_process(delta: float) -> void:
 		downed_time -= delta
 		if downed_time <= 0.0:
 			_respawn()
+		_update_visuals()
 		queue_redraw()
 		return
 
 	if not controls_enabled or vehicle == null:
+		_update_visuals()
 		queue_redraw()
 		return
 
@@ -54,6 +78,7 @@ func _physics_process(delta: float) -> void:
 	if _climb_target_level < 0:
 		_handle_movement(delta)
 	_handle_actions(delta)
+	_update_visuals()
 	queue_redraw()
 
 
@@ -114,7 +139,7 @@ func _handle_actions(delta: float) -> void:
 	if Input.is_action_pressed(&"fire_primary") and fire_cooldown <= 0.0 and not _is_repairing:
 		var direction: Vector2 = position.direction_to(aim_position)
 		if direction.length_squared() > 0.1:
-			shoot_requested.emit(position + direction * 24.0, direction, 15.0 * damage_multiplier)
+			shoot_requested.emit(position + direction * 38.0, direction, 15.0 * damage_multiplier)
 			fire_cooldown = 0.25
 
 
@@ -146,13 +171,24 @@ func _draw() -> void:
 		draw_string(ThemeDB.fallback_font, Vector2(-34, -30), "DOWN %.0f" % downed_time, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
 		return
 
-	var body_color: Color = Color("#5cb9d6") if invulnerable_time <= 0.0 else Color("#d8f7ff")
-	draw_circle(Vector2(0, -15), 11.0, Color("#e6b386"))
-	draw_rect(Rect2(-11, -5, 22, 27), body_color, true)
-	draw_line(Vector2(-7, 22), Vector2(-10, 34), Color("#283549"), 6.0)
-	draw_line(Vector2(7, 22), Vector2(10, 34), Color("#283549"), 6.0)
-	var local_aim: Vector2 = (aim_position - global_position).normalized()
-	draw_line(Vector2(0, 2), local_aim * 31.0, Color("#ece4ce"), 6.0)
-	draw_circle(local_aim * 34.0, 3.0, Color("#f5b84e"))
 	if _is_repairing:
 		draw_arc(Vector2.ZERO, 30.0, -PI * 0.7, PI * 0.7, 20, Color("#5ff0ce"), 3.0)
+
+
+func _update_visuals() -> void:
+	if _body_sprite == null or _weapon_sprite == null:
+		return
+	_body_sprite.visible = not is_downed
+	_weapon_sprite.visible = not is_downed
+	if is_downed:
+		return
+	var local_aim: Vector2 = (aim_position - global_position).normalized()
+	if local_aim.length_squared() < 0.1:
+		local_aim = Vector2.RIGHT
+	_body_sprite.flip_h = local_aim.x < 0.0
+	_weapon_sprite.position = local_aim * 17.0 + Vector2(0.0, -2.0)
+	_weapon_sprite.rotation = local_aim.angle()
+	_weapon_sprite.flip_v = local_aim.x < 0.0
+	var flash_color: Color = Color("#d8f7ff") if invulnerable_time > 0.0 else Color.WHITE
+	_body_sprite.modulate = flash_color
+	_weapon_sprite.modulate = flash_color

@@ -254,6 +254,17 @@ func _run_smoke_test() -> void:
 		if kills != 1:
 			failures.append("enemy kill was not counted")
 
+	# 全敵種のスプライト初期化
+	for test_kind: StringName in [&"walker", &"runner", &"climber"]:
+		var visual_enemy: EnemyUnit = EnemyScript.new() as EnemyUnit
+		add_child(visual_enemy)
+		visual_enemy.setup(test_kind, -1, vehicle, player)
+		await get_tree().process_frame
+		if visual_enemy.get_child_count() == 0:
+			failures.append("enemy visual missing: %s" % test_kind)
+		visual_enemy.queue_free()
+	await get_tree().process_frame
+
 	# 外装損傷と修理
 	var front_before: float = float(vehicle.section_hp[&"front"])
 	vehicle.take_attack(&"front", 50.0)

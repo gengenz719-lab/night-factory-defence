@@ -3,6 +3,10 @@ extends Node2D
 
 signal died(enemy: EnemyUnit)
 
+const WALKER_TEXTURE: Texture2D = preload("res://assets/art/actors/enemy_walker.png")
+const RUNNER_TEXTURE: Texture2D = preload("res://assets/art/actors/enemy_runner.png")
+const CLIMBER_TEXTURE: Texture2D = preload("res://assets/art/actors/enemy_climber.png")
+
 var enemy_type: StringName = &"walker"
 var side: int = 1
 var vehicle: SurvivalVehicle
@@ -16,6 +20,14 @@ var attack_cooldown: float = 0.0
 var active: bool = true
 var inside_vehicle: bool = false
 var _hit_flash: float = 0.0
+var _sprite: Sprite2D
+
+
+func _ready() -> void:
+	_sprite = Sprite2D.new()
+	_sprite.z_index = -1
+	add_child(_sprite)
+	_configure_sprite()
 
 
 func setup(kind: StringName, spawn_side: int, target_vehicle: SurvivalVehicle, target_player: CrewPlayer) -> void:
@@ -46,6 +58,7 @@ func setup(kind: StringName, spawn_side: int, target_vehicle: SurvivalVehicle, t
 		position = Vector2(-55.0 if side < 0 else 1655.0, 675.0)
 	add_to_group(&"enemies")
 	z_index = 24
+	_configure_sprite()
 	queue_redraw()
 
 
@@ -54,6 +67,8 @@ func _process(delta: float) -> void:
 		return
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	_hit_flash = maxf(0.0, _hit_flash - delta)
+	if _sprite != null:
+		_sprite.modulate = Color.WHITE if _hit_flash <= 0.0 else Color("#fff2d1")
 
 	var section: StringName = &"roof" if enemy_type == &"climber" else &"front" if side < 0 else &"rear"
 	if not inside_vehicle and vehicle.is_breached(section) and enemy_type != &"climber":
@@ -94,29 +109,25 @@ func take_damage(amount: float) -> void:
 
 
 func _draw() -> void:
-	var base_color: Color
+	# HPバー
+	draw_rect(Rect2(-24, -68, 48, 5), Color("#241e25"), true)
+	draw_rect(Rect2(-24, -68, 48.0 * clampf(hp / max_hp, 0.0, 1.0), 5), Color("#df5b57"), true)
+
+
+func _configure_sprite() -> void:
+	if _sprite == null:
+		return
+	var texture: Texture2D = WALKER_TEXTURE
+	var target_height: float = 98.0
 	match enemy_type:
 		&"runner":
-			base_color = Color("#b9cf4a")
+			texture = RUNNER_TEXTURE
+			target_height = 90.0
 		&"climber":
-			base_color = Color("#b46981")
-		_:
-			base_color = Color("#699955")
-	if _hit_flash > 0.0:
-		base_color = Color.WHITE
-
-	if enemy_type == &"climber":
-		draw_circle(Vector2.ZERO, 15.0, base_color)
-		for angle: float in [-2.5, -1.6, -0.6, 0.6, 1.6, 2.5]:
-			var end: Vector2 = Vector2.from_angle(angle) * 28.0
-			draw_line(Vector2.ZERO, end, Color("#4b2837"), 5.0)
-	else:
-		draw_circle(Vector2(0, -24), 12.0, Color("#a8ad7a"))
-		draw_rect(Rect2(-13, -13, 26, 38), base_color, true)
-		var lean: float = -8.0 if side < 0 else 8.0
-		draw_line(Vector2(-8, 24), Vector2(-13 + lean, 38), Color("#32372f"), 6.0)
-		draw_line(Vector2(8, 24), Vector2(13 + lean, 38), Color("#32372f"), 6.0)
-
-	# HPバー
-	draw_rect(Rect2(-22, -48, 44, 5), Color("#241e25"), true)
-	draw_rect(Rect2(-22, -48, 44.0 * clampf(hp / max_hp, 0.0, 1.0), 5), Color("#df5b57"), true)
+			texture = CLIMBER_TEXTURE
+			target_height = 110.0
+	_sprite.texture = texture
+	var sprite_scale: float = target_height / float(texture.get_height())
+	_sprite.scale = Vector2(sprite_scale, sprite_scale)
+	_sprite.position = Vector2(0.0, 38.0 - target_height * 0.5)
+	_sprite.flip_h = side > 0
