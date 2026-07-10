@@ -4,6 +4,7 @@ extends Node2D
 signal destroyed
 signal values_changed
 
+const VEHICLE_TEXTURE: Texture2D = preload("res://assets/art/vehicle/survival_vehicle.png")
 const LEFT_X: float = 360.0
 const RIGHT_X: float = 1240.0
 const TOP_Y: float = 300.0
@@ -27,17 +28,25 @@ var supplies: float = 100.0
 var repair_multiplier: float = 1.0
 var _repair_supply_progress: float = 0.0
 var _damage_flash: float = 0.0
+var _vehicle_sprite: Sprite2D
 
 
 func _ready() -> void:
 	for key: StringName in max_section_hp:
 		section_hp[key] = max_section_hp[key]
 	z_index = 10
+	_vehicle_sprite = Sprite2D.new()
+	_vehicle_sprite.texture = VEHICLE_TEXTURE
+	_vehicle_sprite.position = Vector2(800.0, 510.0)
+	_vehicle_sprite.scale = Vector2(0.62, 0.62)
+	_vehicle_sprite.z_index = -1
+	add_child(_vehicle_sprite)
 	queue_redraw()
 
 
 func _process(delta: float) -> void:
 	_damage_flash = maxf(0.0, _damage_flash - delta)
+	_vehicle_sprite.modulate = Color("#ffb0a8") if _damage_flash > 0.0 else Color.WHITE
 	queue_redraw()
 
 
@@ -120,48 +129,6 @@ func section_ratio(section: StringName) -> float:
 
 
 func _draw() -> void:
-	var flash_color: Color = Color("#8f3b35") if _damage_flash > 0.0 else Color("#252a31")
-	# 車体外形
-	draw_rect(Rect2(LEFT_X - 34, TOP_Y - 28, RIGHT_X - LEFT_X + 68, BOTTOM_Y - TOP_Y + 50), flash_color, true)
-	draw_rect(Rect2(LEFT_X, TOP_Y, RIGHT_X - LEFT_X, BOTTOM_Y - TOP_Y), Color("#15191f"), true)
-
-	# 車内の暖色区画
-	draw_rect(Rect2(LEFT_X + 18, TOP_Y + 24, RIGHT_X - LEFT_X - 36, 176), Color("#433127"), true)
-	draw_rect(Rect2(LEFT_X + 18, UPPER_FLOOR_Y + 16, RIGHT_X - LEFT_X - 36, 132), Color("#302b28"), true)
-	draw_rect(Rect2(LEFT_X + 18, TOP_Y + 24, RIGHT_X - LEFT_X - 36, 176), Color("#b8793f"), false, 3.0)
-	draw_rect(Rect2(LEFT_X + 18, UPPER_FLOOR_Y + 16, RIGHT_X - LEFT_X - 36, 132), Color("#b8793f"), false, 3.0)
-
-	# 床
-	draw_rect(Rect2(LEFT_X - 8, UPPER_FLOOR_Y, RIGHT_X - LEFT_X + 16, 14), Color("#77716b"), true)
-	draw_rect(Rect2(LEFT_X - 8, LOWER_FLOOR_Y, RIGHT_X - LEFT_X + 16, 18), Color("#77716b"), true)
-
-	# はしご
-	for y: int in range(330, 646, 28):
-		draw_line(Vector2(LADDER_X - 22, y), Vector2(LADDER_X + 22, y), Color("#d09a55"), 4.0)
-	draw_line(Vector2(LADDER_X - 22, 320), Vector2(LADDER_X - 22, 650), Color("#9a7448"), 5.0)
-	draw_line(Vector2(LADDER_X + 22, 320), Vector2(LADDER_X + 22, 650), Color("#9a7448"), 5.0)
-
-	# 操縦席、工作台、ソファ、発電機
-	draw_rect(Rect2(LEFT_X + 38, 565, 120, 72), Color("#263843"), true)
-	draw_rect(Rect2(LEFT_X + 44, 578, 48, 26), Color("#78b7c7"), true)
-	draw_rect(Rect2(540, 575, 126, 62), Color("#4d3b2d"), true)
-	draw_rect(Rect2(552, 560, 102, 16), Color("#c48a4c"), true)
-	draw_circle(REPAIR_CONSOLE, 16.0, Color("#55d6be"))
-	draw_rect(Rect2(920, 570, 168, 56), Color("#365a5b"), true)
-	draw_rect(Rect2(1090, 540, 98, 96), Color("#67452f"), true)
-	for i: int in range(3):
-		draw_circle(Vector2(1116 + i * 25, 570), 8.0, Color("#f3b45e"))
-
-	# 射撃窓
-	draw_rect(Rect2(LEFT_X - 16, 390, 34, 68), Color("#8bc5cf"), true)
-	draw_rect(Rect2(RIGHT_X - 18, 390, 34, 68), Color("#8bc5cf"), true)
-
-	# 車輪
-	for wheel_x: float in [LEFT_X + 150.0, RIGHT_X - 150.0]:
-		draw_circle(Vector2(wheel_x, BOTTOM_Y + 35), 58.0, Color("#111318"))
-		draw_circle(Vector2(wheel_x, BOTTOM_Y + 35), 29.0, Color("#6a6259"))
-		draw_circle(Vector2(wheel_x, BOTTOM_Y + 35), 10.0, Color("#c18b4f"))
-
 	# 方向別外装の状態色
 	_draw_section_bar(Vector2(LEFT_X - 32, 320), Vector2(12, 170), section_ratio(&"front"))
 	_draw_section_bar(Vector2(RIGHT_X + 20, 320), Vector2(12, 170), section_ratio(&"rear"))
