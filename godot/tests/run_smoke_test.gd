@@ -3,7 +3,8 @@ extends RefCounted
 
 const CatalogFixtureScript := preload("res://tests/catalog_fixture_definition.gd")
 const REQUIRED_RUN_NODES: Array[String] = [
-	"StageDirector", "EnemyDirector", "VehicleState", "RewardSystem", "NetStateReplicator",
+	"StageDirector", "EnemyDirector", "VehicleState", "RewardSystem",
+	"NetStateReplicator", "PlayerNetReplicator", "ReviveController",
 ]
 const REQUIRED_INPUT_ACTIONS: Array[StringName] = [
 	&"move_left", &"move_right", &"jump", &"drop_down", &"aim",
@@ -22,6 +23,7 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	_test_catalog(failures)
 	_test_deterministic_rewards(failures)
 	_test_foundation_configuration(coordinator, failures)
+	_test_player_survival(coordinator.player, failures)
 
 	coordinator.stage_director.begin_combat()
 	if coordinator.stage_director.state != StageDirector.RunState.COMBAT:
@@ -74,6 +76,37 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	if coordinator.stage_director.state != StageDirector.RunState.VICTORY:
 		failures.append("wave 2 did not enter victory")
 	return failures
+
+
+func _test_player_survival(player: CrewPlayer, failures: Array[String]) -> void:
+	var start_x: float = player.position.x
+	if not player.authority_request_dodge(Vector2.RIGHT, Vector2.RIGHT):
+		failures.append("authority dodge was rejected")
+	if not is_equal_approx(player.position.x - start_x, player.definition.dodge_distance_cells * CrewPlayer.CELL_SIZE_PX):
+		failures.append("dodge distance mismatch")
+	var hp_before: float = player.survival.hp
+	player.take_damage(10.0)
+	if not is_equal_approx(player.survival.hp, hp_before):
+		failures.append("dodge invulnerability did not block damage")
+	if player.authority_request_dodge(Vector2.RIGHT, Vector2.RIGHT):
+		failures.append("dodge cooldown was not enforced")
+	player.authority_tick(player.definition.dodge_invulnerability_seconds + 0.01)
+	player.take_damage(9999.0)
+	if not player.survival.is_downed or not is_equal_approx(player.survival.downed_time, player.definition.downed_grace_seconds):
+		failures.append("downed duration mismatch")
+	player.authority_add_revive_progress(player.definition.revive_seconds)
+	if player.survival.is_downed or not is_equal_approx(player.survival.hp, player.survival.max_hp * player.definition.revive_health_ratio):
+		failures.append("revive health mismatch")
+	if not is_equal_approx(player.survival.invulnerable_time, player.definition.revive_invulnerability_seconds):
+		failures.append("revive invulnerability mismatch")
+	player.authority_tick(player.definition.revive_invulnerability_seconds + 0.01)
+	player.take_damage(9999.0)
+	player.authority_tick(player.definition.downed_grace_seconds + 0.01)
+	if not player.survival.is_departed or not is_equal_approx(player.survival.return_time, player.definition.return_wait_seconds):
+		failures.append("departure transition mismatch")
+	player.authority_tick(player.definition.return_wait_seconds + 0.01)
+	if player.survival.is_departed or not is_equal_approx(player.survival.hp, player.survival.max_hp * player.definition.return_health_ratio):
+		failures.append("post-departure return mismatch")
 
 
 func _test_catalog(failures: Array[String]) -> void:

@@ -15,6 +15,8 @@ const NetworkTestDriverScript := preload("res://tests/network_test_driver.gd")
 @onready var vehicle_state: VehicleState = $VehicleState as VehicleState
 @onready var reward_system: RewardSystem = $RewardSystem as RewardSystem
 @onready var net_state_replicator: NetStateReplicator = $NetStateReplicator as NetStateReplicator
+@onready var revive_controller: ReviveController = $ReviveController as ReviveController
+@onready var player_net_replicator: PlayerNetReplicator = $PlayerNetReplicator as PlayerNetReplicator
 @onready var parallax_world: Node2D = $ParallaxWorld as Node2D
 @onready var projectiles: Node2D = $Projectiles as Node2D
 
@@ -63,10 +65,12 @@ func setup_network_run(run_seed: int) -> void:
 	enemy_director.setup(vehicle_state, host_player, random_streams.wave)
 	enemy_director.authoritative = NetworkSession.is_host_authority()
 	reward_system.setup(random_streams.reward, relic_pool)
+	revive_controller.setup(players_by_peer, vehicle_state)
 	_connect_systems()
 	if not NetworkSession.is_host_authority():
 		stage_director.process_mode = Node.PROCESS_MODE_DISABLED
-	net_state_replicator.setup(self, players_by_peer)
+	player_net_replicator.setup(self, players_by_peer)
+	net_state_replicator.setup(self)
 	stage_director.setup(waves)
 	var network_test_driver := NetworkTestDriverScript.new() as NetworkTestDriver
 	add_child(network_test_driver)
@@ -83,6 +87,7 @@ func _process(_delta: float) -> void:
 		stage_director.state_text(), maxf(0.0, stage_director.state_time),
 		player, vehicle_state, reward_system.kills, reward_system.acquired
 	)
+	hud.update_team_status(players_by_peer, NetworkSession.local_peer_id(), reward_system.kills)
 
 
 func _connect_systems() -> void:
