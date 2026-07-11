@@ -31,6 +31,7 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	coordinator.stage_director.begin_combat()
 	if coordinator.stage_director.state != StageDirector.RunState.COMBAT:
 		failures.append("combat did not start")
+	await _test_breach_invasion(coordinator, failures)
 	coordinator.player.apply_network_input(Vector2.UP, Vector2.RIGHT, 1.0 / 30.0, false)
 	if coordinator.player.on_floor:
 		failures.append("network jump intent was not applied by authority")
@@ -65,7 +66,7 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	if not is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), front_before - 160.0):
 		failures.append("vehicle damage mismatch")
 	coordinator.player.position = SurvivalVehicle.REPAIR_CONSOLE
-	for _step: int in range(30):
+	for _step: int in range(100):
 		coordinator.vehicle_state.repair_at(coordinator.player.position, 0.1, 1.0)
 	var combat_cap: float = float(coordinator.vehicle_state.max_section_hp[&"front"]) * coordinator.vehicle_state.definition.combat_repair_cap_ratio
 	if not is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), combat_cap):
@@ -79,7 +80,11 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	coordinator.select_relic(plating_index)
 	if coordinator.stage_director.wave_number() != 2 or float(coordinator.vehicle_state.max_section_hp[&"front"]) <= old_front_max:
 		failures.append("relic application mismatch")
-	for _step: int in range(70):
+	var supplies_before_seal: float = coordinator.vehicle_state.supplies
+	coordinator.vehicle_state.repair_at(coordinator.player.position, 0.1, 1.0)
+	if coordinator.vehicle_state.is_breached(&"roof") or not is_equal_approx(coordinator.vehicle_state.supplies, supplies_before_seal - coordinator.vehicle_state.definition.breach_seal_supply_cost):
+		failures.append("wave break breach seal mismatch")
+	for _step: int in range(150):
 		coordinator.vehicle_state.repair_at(coordinator.player.position, 0.1, 1.0)
 	if float(coordinator.vehicle_state.section_hp[&"front"]) < float(coordinator.vehicle_state.max_section_hp[&"front"]) - 0.1:
 		failures.append("prepare repair did not reach 100 percent")
@@ -89,6 +94,33 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	if coordinator.stage_director.state != StageDirector.RunState.VICTORY:
 		failures.append("wave 2 did not enter victory")
 	return failures
+
+
+func _test_breach_invasion(coordinator: RunCoordinator, failures: Array[String]) -> void:
+	var vehicle: VehicleState = coordinator.vehicle_state
+	vehicle.take_attack(&"roof", float(vehicle.max_section_hp[&"roof"]))
+	if not vehicle.is_breached(&"roof"):
+		failures.append("destroyed exterior did not open breach")
+		return
+	var workbench: VehicleModuleState = coordinator.module_system.workbench_module()
+	var module_hp_before: float = workbench.hp
+	var climber: EnemyUnit = coordinator.enemy_director.spawn_test_enemy(GameCatalog.get_definition(&"enemy_climber") as EnemyDefinition)
+	climber.position = Vector2(SurvivalVehicle.LADDER_X, SurvivalVehicle.ROOF_FLOOR_Y - 15.0)
+	await coordinator.get_tree().process_frame
+	if climber.invasion_state != EnemyUnit.InvasionState.ENTERING or climber.entry_time <= 0.0:
+		failures.append("climber invasion telegraph did not start")
+	climber.entry_time = 0.0
+	await coordinator.get_tree().process_frame
+	if not climber.inside_vehicle or coordinator.enemy_director.invasions_confirmed <= 0:
+		failures.append("climber did not enter through roof breach")
+	climber.position = coordinator.module_system.grid_to_world(workbench.grid_position, workbench.definition.grid_size)
+	climber.target_evaluation_time = 0.0
+	climber.attack_cooldown = 0.0
+	await coordinator.get_tree().process_frame
+	if workbench.hp >= module_hp_before or coordinator.enemy_director.module_attacks_confirmed <= 0:
+		failures.append("interior climber did not attack module")
+	climber.queue_free()
+	await coordinator.get_tree().process_frame
 
 
 func _test_player_survival(player: CrewPlayer, failures: Array[String]) -> void:

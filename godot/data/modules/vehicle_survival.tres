@@ -26,6 +26,7 @@ exterior_hp_per_supply = 10.0
 module_hp_per_supply = 12.0
 combat_repair_cap_ratio = 0.6
 breach_seal_supply_cost = 8
+breach_warning_ratio = 0.25
 repair_interaction_range_px = 95.0
 additional_repairer_efficiency = Array[float]([0.6, 0.3, 0.15])
 grid_width = 8

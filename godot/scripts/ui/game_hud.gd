@@ -113,12 +113,14 @@ func _build_overlay() -> void:
 
 func update_status(wave: int, max_wave: int, state_text: String, time_left: float, _player: CrewPlayer, vehicle: VehicleState, kills: int, relics: Array[RelicDefinition]) -> void:
 	wave_label.text = "WAVE %d / %d\n%s   %02d:%02d" % [wave, max_wave, state_text, floori(time_left) / 60, floori(time_left) % 60]
-	vehicle_label.text = "車体  %d / %d\n前 %.0f%%  屋根 %.0f%%  後 %.0f%%\n補給 %d  電力 %d/%d  Scrap %d" % [
+	var breach_text: String = "なし" if vehicle.open_breach_sections().is_empty() else ",".join(vehicle.open_breach_sections())
+	vehicle_label.text = "車体  %d / %d\n前 %.0f%%  屋根 %.0f%%  後 %.0f%%\n補給 %d 電力 %d/%d Scrap %d\n侵入口: %s" % [
 		roundi(vehicle.hull), roundi(vehicle.max_hull),
 		vehicle.section_ratio(&"front") * 100.0,
 		vehicle.section_ratio(&"roof") * 100.0,
 		vehicle.section_ratio(&"rear") * 100.0,
 		roundi(vehicle.supplies), vehicle.module_system.power_consumed, vehicle.module_system.power_generated, vehicle.module_system.scrap,
+		breach_text,
 	]
 	help_label.text = "A/D 移動  SPACE ジャンプ  SHIFT 回避  Q 固有能力\n左クリック 射撃  E 修理/蘇生  B 車両改装(準備中)  F1/F2 テスト短縮"
 	message_label.text = "取得: %s" % " / ".join(_relic_names(relics)) if not relics.is_empty() else "車両を守りながらWaveを耐えろ"

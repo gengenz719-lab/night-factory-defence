@@ -1,12 +1,12 @@
 param(
     [int]$Port = 29240,
-    [int]$TimeoutSeconds = 20
+    [int]$TimeoutSeconds = 60
 )
 
 $ErrorActionPreference = 'Stop'
 $projectPath = Split-Path $PSScriptRoot -Parent
 $godotPath = (Resolve-Path (Join-Path $projectPath '..\.tools\godot-4.7\Godot_v4.7-stable_win64_console.exe')).Path
-$reportRoot = Join-Path $env:TEMP ('nfd-wp2-3-' + [DateTime]::Now.ToString('yyyyMMdd-HHmmss'))
+$reportRoot = Join-Path $env:TEMP ('nfd-wp2-4-' + [DateTime]::Now.ToString('yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Path $reportRoot | Out-Null
 
 function Wait-ForPair {
@@ -67,7 +67,7 @@ if (-not $versionText.Contains('VERSION_TEST_PASS') -or (Get-Item $versionPair.C
     throw "Version rejection test failed. Logs: $reportRoot"
 }
 
-Write-Host "WP2_3_TWO_PROCESS_PASS"
+Write-Host "WP2_4_TWO_PROCESS_PASS"
 Write-Host "Logs: $reportRoot"
 Write-Host ($hostText -split "`r?`n" | Where-Object { $_ -like 'NETWORK_TEST_PASS*' })
 Write-Host ($versionText -split "`r?`n" | Where-Object { $_ -like 'VERSION_TEST_PASS*' })

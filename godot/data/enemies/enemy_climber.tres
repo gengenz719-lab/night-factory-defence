@@ -16,3 +16,7 @@ player_damage = 10.0
 exterior_dps = 8.0
 stagger_resistance = 30.0
 path_type = &"side_roof_invader"
+can_invade = true
+breach_entry_seconds = 2.0
+interior_target_range_cells = 2.5
+target_reevaluation_seconds = 0.25

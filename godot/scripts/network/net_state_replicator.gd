@@ -2,7 +2,9 @@ class_name NetStateReplicator
 extends Node
 
 signal enemy_snapshot_received
+signal enemy_invasion_snapshot_received(enemy_net_id: int, inside_vehicle: bool, invasion_state: int)
 signal vehicle_snapshot_received(front_hp: float)
+signal breach_snapshot_received(front: bool, rear: bool, roof: bool, lower: bool)
 signal run_state_received(state: int, wave_index: int)
 
 const ENEMY_SNAPSHOT_INTERVAL: float = 1.0 / 12.0
@@ -52,15 +54,16 @@ func _send_enemy_snapshots() -> void:
 	for child: Node in coordinator.enemy_director.get_children():
 		var enemy := child as EnemyUnit
 		if enemy != null and not enemy.is_network_replica:
-			_receive_enemy_snapshot.rpc(enemy.net_id, String(enemy.enemy_type), enemy.side, enemy.position, enemy.hp, enemy.inside_vehicle)
+			_receive_enemy_snapshot.rpc(enemy.net_id, String(enemy.enemy_type), enemy.side, enemy.position, enemy.hp, enemy.inside_vehicle, enemy.invasion_state, enemy.entry_time)
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", 2)
-func _receive_enemy_snapshot(enemy_net_id: int, enemy_id: String, side: int, position_value: Vector2, hp: float, inside_vehicle: bool) -> void:
+func _receive_enemy_snapshot(enemy_net_id: int, enemy_id: String, side: int, position_value: Vector2, hp: float, inside_vehicle: bool, invasion_state: int, entry_time: float) -> void:
 	if NetworkSession.is_host_authority(): return
 	var enemy: EnemyUnit = coordinator.enemy_director.spawn_network_replica(enemy_net_id, StringName(enemy_id), side)
-	enemy.apply_network_snapshot(position_value, hp, inside_vehicle)
+	enemy.apply_network_snapshot(position_value, hp, inside_vehicle, invasion_state, entry_time)
 	enemy_snapshot_received.emit()
+	enemy_invasion_snapshot_received.emit(enemy_net_id, inside_vehicle, invasion_state)
 
 
 func _on_enemy_removed(enemy_net_id: int) -> void:
@@ -77,16 +80,19 @@ func _send_vehicle_snapshot() -> void:
 	_receive_vehicle_snapshot.rpc(
 		vehicle.hull, float(vehicle.section_hp[&"front"]), float(vehicle.section_hp[&"rear"]),
 		float(vehicle.section_hp[&"roof"]), float(vehicle.section_hp[&"lower"]), vehicle.supplies,
+		vehicle.is_breached(&"front"), vehicle.is_breached(&"rear"),
+		vehicle.is_breached(&"roof"), vehicle.is_breached(&"lower"),
 		coordinator.reward_system.kills
 	)
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", 2)
-func _receive_vehicle_snapshot(hull: float, front: float, rear: float, roof: float, lower: float, supplies: float, kills: int) -> void:
+func _receive_vehicle_snapshot(hull: float, front: float, rear: float, roof: float, lower: float, supplies: float, front_breach: bool, rear_breach: bool, roof_breach: bool, lower_breach: bool, kills: int) -> void:
 	if not NetworkSession.is_host_authority():
-		coordinator.vehicle_state.apply_network_snapshot(hull, front, rear, roof, lower, supplies)
+		coordinator.vehicle_state.apply_network_snapshot(hull, front, rear, roof, lower, supplies, front_breach, rear_breach, roof_breach, lower_breach)
 		coordinator.reward_system.kills = kills
 		vehicle_snapshot_received.emit(front)
+		breach_snapshot_received.emit(front_breach, rear_breach, roof_breach, lower_breach)
 
 
 func broadcast_run_state() -> void:
