@@ -114,8 +114,13 @@ func _process(delta: float) -> void:
 				_supplies_before_drone = coordinator.vehicle_state.supplies
 				phase = 1
 		1:
-			if elapsed >= 0.65:
-				var client_player: CrewPlayer = _find_client_player()
+			var client_player: CrewPlayer = _find_client_player()
+			var both_dodges_confirmed: bool = (
+				replicator.remote_dodge_intents_received > 0 and
+				replicator.dodges_confirmed >= 2 and
+				client_player.survival.invulnerable_time > 0.0
+			)
+			if elapsed >= 0.55 and both_dodges_confirmed:
 				var hp_before: float = client_player.survival.hp
 				var host_player := coordinator.players_by_peer[NetworkSession.HOST_PEER_ID] as CrewPlayer
 				ability_authority_pass = (
@@ -127,8 +132,6 @@ func _process(delta: float) -> void:
 				)
 				client_player.take_damage(10.0)
 				dodge_authority_pass = (
-					replicator.remote_dodge_intents_received > 0 and
-					replicator.dodges_confirmed >= 2 and
 					is_equal_approx(client_player.survival.hp, hp_before)
 				)
 				phase = 2

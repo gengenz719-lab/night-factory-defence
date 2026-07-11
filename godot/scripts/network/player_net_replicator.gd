@@ -91,7 +91,8 @@ func _capture_local_input() -> void:
 		aim = _automated_aim()
 		wants_fire = true
 		wants_interact = test_elapsed >= 1.2 and test_elapsed < 8.0
-		wants_dodge = test_elapsed >= 0.55 and test_elapsed < 0.70
+		# 2プロセスの起動時刻差があっても、ホストが回避意図を確実に受信できる幅を持たせる。
+		wants_dodge = test_elapsed >= 0.45 and test_elapsed < 1.10
 		wants_ability = test_elapsed >= 0.25 and test_elapsed < 0.40
 	if NetworkSession.is_host_authority():
 		_apply_host_input(NetworkSession.local_peer_id(), input_sequence, axis, aim, wants_fire, wants_interact, wants_dodge, wants_ability)
