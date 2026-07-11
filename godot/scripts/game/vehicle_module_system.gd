@@ -172,6 +172,14 @@ func repair_module(module: VehicleModuleState, amount: float, cap_ratio: float) 
 	return restored
 
 
+func damage_module(module: VehicleModuleState, amount: float) -> bool:
+	if module == null or module.hp <= 0.0:
+		return false
+	module.hp = maxf(0.0, module.hp - amount)
+	recalculate_power()
+	return true
+
+
 func module_at_cell(cell: Vector2i) -> VehicleModuleState:
 	for module: VehicleModuleState in modules.values():
 		var rect := Rect2i(module.grid_position, module.definition.grid_size)

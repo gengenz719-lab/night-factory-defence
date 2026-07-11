@@ -3,6 +3,8 @@ extends Node
 
 signal destroyed
 signal values_changed
+signal breach_opened(section: StringName)
+signal breach_closed(section: StringName)
 
 @onready var visual: SurvivalVehicle = $Vehicle as SurvivalVehicle
 
@@ -11,6 +13,7 @@ var max_hull: float = 0.0
 var hull: float = 0.0
 var max_section_hp: Dictionary = {}
 var section_hp: Dictionary = {}
+var breaches: Dictionary = {}
 var supplies: float = 0.0
 var repair_multiplier: float = 1.0
 var module_system: VehicleModuleSystem
@@ -29,6 +32,7 @@ func setup(vehicle_data: VehicleDefinition) -> void:
 		&"lower": definition.lower_armor_hp,
 	}
 	section_hp = max_section_hp.duplicate()
+	breaches = {&"front": false, &"rear": false, &"roof": false, &"lower": false}
 	supplies = definition.initial_supplies
 	visual.setup(self)
 
@@ -38,7 +42,21 @@ func floor_y(level: int) -> float:
 
 
 func is_breached(section: StringName) -> bool:
-	return float(section_hp.get(section, 0.0)) <= 0.0
+	return bool(breaches.get(section, false))
+
+
+func breach_warning(section: StringName) -> bool:
+	var ratio: float = section_ratio(section)
+	return ratio > 0.0 and ratio <= definition.breach_warning_ratio
+
+
+func open_breach_sections() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for section: StringName in breaches:
+		if bool(breaches[section]):
+			result.append(section)
+	result.sort()
+	return result
 
 
 func take_attack(section: StringName, amount: float) -> void:
@@ -50,6 +68,9 @@ func take_attack(section: StringName, amount: float) -> void:
 		var absorbed: float = minf(current_section, remaining)
 		section_hp[section] = current_section - absorbed
 		remaining -= absorbed
+		if float(section_hp[section]) <= 0.0 and not is_breached(section):
+			breaches[section] = true
+			breach_opened.emit(section)
 	if remaining > 0.0:
 		hull = maxf(0.0, hull - remaining)
 	visual.flash_damage()
@@ -64,6 +85,18 @@ func repair_at(player_position: Vector2, delta: float, player_multiplier: float)
 	var workbench: VehicleModuleState = module_system.workbench_module() if module_system != null else null
 	if workbench == null:
 		return false
+	if not combat_active:
+		var open_sections: Array[StringName] = open_breach_sections()
+		if not open_sections.is_empty():
+			if supplies < definition.breach_seal_supply_cost:
+				return false
+			var sealed_section: StringName = open_sections[0]
+			supplies -= definition.breach_seal_supply_cost
+			breaches[sealed_section] = false
+			section_hp[sealed_section] = maxf(1.0, float(section_hp[sealed_section]))
+			breach_closed.emit(sealed_section)
+			values_changed.emit()
+			return true
 	var workbench_operational: bool = workbench.is_operational()
 	var cap_ratio: float = definition.combat_repair_cap_ratio if combat_active else 1.0
 	var target_module: VehicleModuleState = module_system.lowest_damaged_module(cap_ratio)
@@ -134,7 +167,11 @@ func apply_network_snapshot(
 	rear_hp: float,
 	roof_hp: float,
 	lower_hp: float,
-	authoritative_supplies: float
+	authoritative_supplies: float,
+	front_breach: bool,
+	rear_breach: bool,
+	roof_breach: bool,
+	lower_breach: bool
 ) -> void:
 	hull = clampf(authoritative_hull, 0.0, max_hull)
 	section_hp[&"front"] = clampf(front_hp, 0.0, float(max_section_hp[&"front"]))
@@ -142,6 +179,10 @@ func apply_network_snapshot(
 	section_hp[&"roof"] = clampf(roof_hp, 0.0, float(max_section_hp[&"roof"]))
 	section_hp[&"lower"] = clampf(lower_hp, 0.0, float(max_section_hp[&"lower"]))
 	supplies = maxf(0.0, authoritative_supplies)
+	breaches[&"front"] = front_breach
+	breaches[&"rear"] = rear_breach
+	breaches[&"roof"] = roof_breach
+	breaches[&"lower"] = lower_breach
 	values_changed.emit()
 
 

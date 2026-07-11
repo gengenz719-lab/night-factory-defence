@@ -19,6 +19,7 @@ extends GameDefinition
 @export var module_hp_per_supply: float = 12.0
 @export var combat_repair_cap_ratio: float = 0.6
 @export var breach_seal_supply_cost: int = 8
+@export var breach_warning_ratio: float = 0.25
 @export var repair_interaction_range_px: float = 95.0
 @export var additional_repairer_efficiency: Array[float] = [0.6, 0.3, 0.15]
 @export var grid_width: int = 8

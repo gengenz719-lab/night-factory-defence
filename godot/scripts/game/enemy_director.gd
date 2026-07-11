@@ -4,11 +4,15 @@ extends Node2D
 signal enemy_defeated
 signal enemy_spawned(enemy: EnemyUnit)
 signal enemy_removed(enemy_net_id: int)
+signal enemy_entered_vehicle(enemy_net_id: int)
+signal module_attacked(instance_id: int)
 
 const EnemyScript := preload("res://scripts/game/enemy_unit.gd")
 
 var vehicle: VehicleState
 var player: CrewPlayer
+var players_by_peer: Dictionary = {}
+var module_system: VehicleModuleSystem
 var _random: RandomNumberGenerator
 var current_wave: WaveDefinition
 var remaining_budget: int = 0
@@ -17,12 +21,16 @@ var wave_elapsed: float = 0.0
 var active: bool = false
 var authoritative: bool = true
 var _next_net_id: int = 1
+var invasions_confirmed: int = 0
+var module_attacks_confirmed: int = 0
 
 
-func setup(vehicle_state: VehicleState, crew: CrewPlayer, random_stream: RandomNumberGenerator) -> void:
+func setup(vehicle_state: VehicleState, crew: CrewPlayer, random_stream: RandomNumberGenerator, players: Dictionary = {}, modules: VehicleModuleSystem = null) -> void:
 	vehicle = vehicle_state
 	player = crew
 	_random = random_stream
+	players_by_peer = players
+	module_system = modules
 
 
 func _process(delta: float) -> void:
@@ -60,10 +68,11 @@ func spawn_enemy() -> EnemyUnit:
 	var side: int = -1 if front_only or _random.randf() < current_wave.front_spawn_chance else 1
 	var enemy := EnemyScript.new() as EnemyUnit
 	add_child(enemy)
-	enemy.setup(definition, side, vehicle, player)
+	enemy.setup(definition, side, vehicle, player, players_by_peer, module_system)
 	enemy.net_id = _next_net_id
 	_next_net_id += 1
 	enemy.died.connect(_on_enemy_died)
+	_connect_enemy_events(enemy)
 	enemy_spawned.emit(enemy)
 	return enemy
 
@@ -71,8 +80,11 @@ func spawn_enemy() -> EnemyUnit:
 func spawn_test_enemy(definition: EnemyDefinition) -> EnemyUnit:
 	var enemy := EnemyScript.new() as EnemyUnit
 	add_child(enemy)
-	enemy.setup(definition, -1, vehicle, player)
+	enemy.setup(definition, -1, vehicle, player, players_by_peer, module_system)
+	enemy.net_id = _next_net_id
+	_next_net_id += 1
 	enemy.died.connect(_on_enemy_died)
+	_connect_enemy_events(enemy)
 	return enemy
 
 
@@ -82,7 +94,7 @@ func spawn_network_replica(enemy_net_id: int, enemy_id: StringName, spawn_side: 
 		return existing
 	var enemy := EnemyScript.new() as EnemyUnit
 	add_child(enemy)
-	enemy.setup(GameCatalog.get_definition(enemy_id) as EnemyDefinition, spawn_side, vehicle, player)
+	enemy.setup(GameCatalog.get_definition(enemy_id) as EnemyDefinition, spawn_side, vehicle, player, players_by_peer, module_system)
 	enemy.configure_network_replica(enemy_net_id)
 	return enemy
 
@@ -137,3 +149,18 @@ func _select_affordable_enemy() -> EnemyDefinition:
 func _on_enemy_died(enemy: EnemyUnit) -> void:
 	enemy_defeated.emit()
 	enemy_removed.emit(enemy.net_id)
+
+
+func _connect_enemy_events(enemy: EnemyUnit) -> void:
+	enemy.entered_vehicle.connect(_on_enemy_entered_vehicle)
+	enemy.module_attacked.connect(_on_module_attacked)
+
+
+func _on_enemy_entered_vehicle(enemy: EnemyUnit) -> void:
+	invasions_confirmed += 1
+	enemy_entered_vehicle.emit(enemy.net_id)
+
+
+func _on_module_attacked(instance_id: int) -> void:
+	module_attacks_confirmed += 1
+	module_attacked.emit(instance_id)

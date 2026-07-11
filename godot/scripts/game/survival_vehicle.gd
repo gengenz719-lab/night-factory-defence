@@ -57,7 +57,23 @@ func _draw() -> void:
 	_draw_section_bar(Vector2(650, TOP_Y - 22), Vector2(300, 10), state.section_ratio(&"roof"))
 	_draw_section_bar(Vector2(650, BOTTOM_Y + 8), Vector2(300, 10), state.section_ratio(&"lower"))
 	draw_arc(REPAIR_CONSOLE, 24.0, 0.0, TAU, 24, Color("#78f0d2"), 2.0)
+	_draw_breach_state(&"front", Vector2(LEFT_X - 8, 500), Vector2.RIGHT)
+	_draw_breach_state(&"rear", Vector2(RIGHT_X + 8, 500), Vector2.LEFT)
+	_draw_breach_state(&"roof", Vector2(800, TOP_Y + 8), Vector2.DOWN)
+	_draw_breach_state(&"lower", Vector2(800, BOTTOM_Y - 8), Vector2.UP)
 	_draw_modules()
+
+
+func _draw_breach_state(section: StringName, position_value: Vector2, inward: Vector2) -> void:
+	if state.is_breached(section):
+		draw_circle(position_value, 22.0, Color("#351a21"))
+		draw_arc(position_value, 25.0, 0.0, TAU, 20, Color("#ff735f"), 4.0)
+		draw_line(position_value, position_value + inward * 42.0, Color.WHITE, 5.0)
+		draw_string(ThemeDB.fallback_font, position_value + Vector2(-38, -32), "BREACH", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+	elif state.breach_warning(section):
+		var points := PackedVector2Array([position_value + Vector2(0, -18), position_value + Vector2(-18, 16), position_value + Vector2(18, 16)])
+		draw_colored_polygon(points, Color("#e2a548"))
+		draw_string(ThemeDB.fallback_font, position_value + Vector2(-34, 35), "侵入危険", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
 
 
 func _draw_modules() -> void:

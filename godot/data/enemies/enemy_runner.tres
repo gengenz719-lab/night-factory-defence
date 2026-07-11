@@ -16,3 +16,7 @@ player_damage = 7.0
 exterior_dps = 6.0
 stagger_resistance = 15.0
 path_type = &"ground_invader"
+can_invade = true
+breach_entry_seconds = 0.6
+interior_target_range_cells = 2.5
+target_reevaluation_seconds = 0.25

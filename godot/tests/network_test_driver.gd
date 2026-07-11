@@ -4,6 +4,7 @@ extends Node
 var coordinator: RunCoordinator
 enum TestPhase {
 	WAIT_MODULE_INTENT,
+	WAIT_INVASION,
 	WAIT_ACTIONS,
 	DOWN_HOST,
 	REVIVE_HOST,
@@ -57,8 +58,24 @@ var _test_turret_id: int = 0
 var _client_place_sent: bool = false
 var _turret_target_spawned: bool = false
 var _client_ready_sent: bool = false
+var _client_shot_acknowledged: bool = false
+var _client_shot_ack_sent: bool = false
 var _client_observations_ready: bool = false
 var _client_wave_two_acknowledged: bool = false
+var breach_authority_pass: bool = false
+var invasion_authority_pass: bool = false
+var module_attack_authority_pass: bool = false
+var breach_seal_authority_pass: bool = false
+var saw_breach_open: bool = false
+var saw_breach_closed: bool = false
+var saw_invasion_warning: bool = false
+var saw_enemy_inside: bool = false
+var saw_invader_module_damage: bool = false
+var _client_invasion_acknowledged: bool = false
+var _client_invasion_ack_sent: bool = false
+var _test_climber: EnemyUnit
+var _workbench_instance_id: int = 0
+var _supplies_before_breach_seal: float = -1.0
 
 
 func setup(run: RunCoordinator) -> void:
@@ -72,11 +89,15 @@ func setup(run: RunCoordinator) -> void:
 	state_replicator.enemy_snapshot_received.connect(func() -> void: saw_enemy_snapshot = true)
 	state_replicator.vehicle_snapshot_received.connect(_on_vehicle_snapshot)
 	state_replicator.run_state_received.connect(_on_run_state)
+	state_replicator.breach_snapshot_received.connect(_on_breach_snapshot)
+	state_replicator.enemy_invasion_snapshot_received.connect(_on_enemy_invasion_snapshot)
+	coordinator.module_net_replicator.module_state_received.connect(_on_module_state_received)
 	replicator.player_survival_snapshot_received.connect(_on_player_survival_snapshot)
 	replicator.player_ability_snapshot_received.connect(_on_player_ability_snapshot)
 	var host_player := coordinator.players_by_peer.get(NetworkSession.HOST_PEER_ID) as CrewPlayer
 	var client_player: CrewPlayer = _find_client_player()
 	character_selection_pass = host_player != null and client_player != null and host_player.definition.id == &"character_gunner" and client_player.definition.id == &"character_engineer"
+	_workbench_instance_id = coordinator.module_system.workbench_module().instance_id
 	for peer_key: Variant in coordinator.players_by_peer:
 		if int(peer_key) != NetworkSession.local_peer_id():
 			_initial_remote_position = (coordinator.players_by_peer[peer_key] as CrewPlayer).position
@@ -90,6 +111,8 @@ func _process(delta: float) -> void:
 			_client_place_sent = true
 			coordinator.module_net_replicator.request_place(&"module_firing_port", Vector2i(1, 1))
 		_observe_client_modules()
+		_try_acknowledge_shot_observation()
+		_try_acknowledge_invasion_observations()
 		_try_acknowledge_client_observations()
 		return
 	phase_elapsed += delta
@@ -122,30 +145,25 @@ func _process(delta: float) -> void:
 				if enemy != null:
 					enemy.position = Vector2(700.0, 600.0)
 				coordinator.vehicle_state.take_attack(&"front", 170.0)
+				coordinator.vehicle_state.take_attack(&"roof", float(coordinator.vehicle_state.max_section_hp[&"roof"]))
+				breach_authority_pass = coordinator.vehicle_state.is_breached(&"roof")
+				_test_climber = coordinator.enemy_director.spawn_test_enemy(GameCatalog.get_definition(&"enemy_climber") as EnemyDefinition)
+				_test_climber.max_hp = 9999.0
+				_test_climber.hp = 9999.0
+				_test_climber.position = Vector2(SurvivalVehicle.LADDER_X, SurvivalVehicle.ROOF_FLOOR_Y - 15.0)
 				_supplies_before_drone = coordinator.vehicle_state.supplies
+				_advance_phase(TestPhase.WAIT_INVASION)
+		TestPhase.WAIT_INVASION:
+			_drive_and_latch_actions(host_player, client_player)
+			invasion_authority_pass = coordinator.enemy_director.invasions_confirmed > 0 and _test_climber.inside_vehicle
+			module_attack_authority_pass = coordinator.enemy_director.module_attacks_confirmed > 0 and coordinator.module_system.workbench_module().hp < coordinator.module_system.workbench_module().definition.max_hp
+			if breach_authority_pass and invasion_authority_pass and module_attack_authority_pass and _client_invasion_acknowledged:
+				_test_climber.queue_free()
 				_advance_phase(TestPhase.WAIT_ACTIONS)
 		TestPhase.WAIT_ACTIONS:
-			var abilities_ready: bool = replicator.abilities_confirmed >= 2
-			var dodges_ready: bool = (
-				replicator.remote_dodge_intents_received > 0 and
-				replicator.dodges_confirmed >= 2 and
-				client_player.survival.invulnerable_time > 0.0
-			)
-			_drive_intent(NetworkSession.HOST_PEER_ID, not dodges_ready, false, not abilities_ready)
-			_drive_intent(client_player.peer_id, not dodges_ready, false, not abilities_ready)
-			if abilities_ready and dodges_ready:
-				var hp_before: float = client_player.survival.hp
-				ability_authority_pass = (
-					replicator.abilities_confirmed >= 2 and
-					host_player.ability_active_time > 0.0 and client_player.ability_active_time > 0.0 and
-					host_player.effective_fire_interval() < 1.0 / host_player.weapon_definition.shots_per_second and
-					float(coordinator.vehicle_state.section_hp[&"front"]) > 130.0 and
-					is_equal_approx(coordinator.vehicle_state.supplies, _supplies_before_drone)
-				)
-				client_player.take_damage(10.0)
-				dodge_authority_pass = is_equal_approx(client_player.survival.hp, hp_before)
-				if ability_authority_pass and dodge_authority_pass:
-					_advance_phase(TestPhase.DOWN_HOST)
+			_drive_and_latch_actions(host_player, client_player)
+			if ability_authority_pass and dodge_authority_pass and _client_shot_acknowledged:
+				_advance_phase(TestPhase.DOWN_HOST)
 		TestPhase.DOWN_HOST:
 			if host_player.survival.invulnerable_time <= 0.0:
 				client_player.position = host_player.position + Vector2(50.0, 0.0)
@@ -205,11 +223,15 @@ func _process(delta: float) -> void:
 		TestPhase.PREPARE_WAVE_TWO:
 			if coordinator.stage_director.state == StageDirector.RunState.REWARD and not coordinator.active_relic_choices.is_empty():
 				coordinator.select_relic(0)
+			if _supplies_before_breach_seal < 0.0:
+				_supplies_before_breach_seal = coordinator.vehicle_state.supplies
 			var repairer := coordinator.players_by_peer[NetworkSession.HOST_PEER_ID] as CrewPlayer
 			repairer.position = SurvivalVehicle.REPAIR_CONSOLE
 			coordinator.vehicle_state.repair_at(repairer.position, delta, 1.0)
+			if not coordinator.vehicle_state.is_breached(&"roof"):
+				breach_seal_authority_pass = coordinator.vehicle_state.supplies <= _supplies_before_breach_seal - coordinator.vehicle_state.definition.breach_seal_supply_cost
 			repair_full_pass = is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), float(coordinator.vehicle_state.max_section_hp[&"front"]))
-			if repair_full_pass and coordinator.stage_director.state == StageDirector.RunState.PREPARE:
+			if repair_full_pass and breach_seal_authority_pass and coordinator.stage_director.state == StageDirector.RunState.PREPARE:
 				coordinator.stage_director.begin_combat()
 				_advance_phase(TestPhase.FINISH_WAVE_TWO)
 		TestPhase.FINISH_WAVE_TWO:
@@ -224,14 +246,36 @@ func _process(delta: float) -> void:
 			pass
 
 
-func _drive_intent(peer_id: int, wants_dodge: bool, wants_interact: bool, wants_ability: bool, axis: Vector2 = Vector2.ZERO) -> void:
+func _drive_intent(peer_id: int, wants_dodge: bool, wants_interact: bool, wants_ability: bool, axis: Vector2 = Vector2.ZERO, wants_fire: bool = false) -> void:
 	var sequence: int = int(replicator.last_processed_input.get(peer_id, 0)) + 1
 	if peer_id != NetworkSession.HOST_PEER_ID and wants_dodge:
 		replicator.remote_dodge_intents_received += 1
 	replicator._apply_host_input(
 		peer_id, sequence, axis, Vector2.RIGHT,
-		false, wants_interact, wants_dodge, wants_ability
+		wants_fire, wants_interact, wants_dodge, wants_ability
 	)
+
+
+func _drive_and_latch_actions(host_player: CrewPlayer, client_player: CrewPlayer) -> void:
+	var abilities_ready: bool = replicator.abilities_confirmed >= 2
+	var dodges_ready: bool = (
+		replicator.remote_dodge_intents_received > 0 and
+		replicator.dodges_confirmed >= 2 and
+		client_player.survival.invulnerable_time > 0.0
+	)
+	_drive_intent(NetworkSession.HOST_PEER_ID, not dodge_authority_pass and not dodges_ready, false, not ability_authority_pass and not abilities_ready, Vector2.ZERO, not _client_shot_acknowledged)
+	_drive_intent(client_player.peer_id, not dodge_authority_pass and not dodges_ready, false, not ability_authority_pass and not abilities_ready, Vector2.ZERO, not _client_shot_acknowledged)
+	if not ability_authority_pass and abilities_ready:
+		ability_authority_pass = (
+			host_player.ability_active_time > 0.0 and client_player.ability_active_time > 0.0 and
+			host_player.effective_fire_interval() < 1.0 / host_player.weapon_definition.shots_per_second and
+			float(coordinator.vehicle_state.section_hp[&"roof"]) > 0.0 and
+			is_equal_approx(coordinator.vehicle_state.supplies, _supplies_before_drone)
+		)
+	if not dodge_authority_pass and dodges_ready:
+		var hp_before: float = client_player.survival.hp
+		client_player.take_damage(10.0)
+		dodge_authority_pass = is_equal_approx(client_player.survival.hp, hp_before)
 
 
 func _advance_phase(next_phase: TestPhase) -> void:
@@ -242,8 +286,9 @@ func _advance_phase(next_phase: TestPhase) -> void:
 func _timeout_current_phase() -> void:
 	var host_player := coordinator.players_by_peer[NetworkSession.HOST_PEER_ID] as CrewPlayer
 	var client_player: CrewPlayer = _find_client_player()
-	print("NETWORK_TEST_TIMEOUT phase=%s phase_elapsed=%.1f revive=%.2f host_down=%s client_down=%s client_departed=%s distance=%.1f intents=%d inputs=%d client_ready=%s" % [
-		TestPhase.keys()[phase], phase_elapsed, host_player.survival.revive_progress,
+	print("NETWORK_TEST_TIMEOUT phase=%s phase_elapsed=%.1f ability=%s dodge=%s confirmed=%d/%d revive=%.2f host_down=%s client_down=%s client_departed=%s distance=%.1f intents=%d inputs=%d client_ready=%s" % [
+		TestPhase.keys()[phase], phase_elapsed, ability_authority_pass, dodge_authority_pass,
+		replicator.abilities_confirmed, replicator.dodges_confirmed, host_player.survival.revive_progress,
 		host_player.survival.is_downed, client_player.survival.is_downed,
 		client_player.survival.is_departed, host_player.position.distance_to(client_player.position),
 		coordinator.revive_controller.revive_target_by_peer.size(), replicator.remote_inputs_received,
@@ -259,13 +304,28 @@ func _try_acknowledge_client_observations() -> void:
 	_ack_client_observations.rpc_id(NetworkSession.HOST_PEER_ID)
 
 
+func _try_acknowledge_shot_observation() -> void:
+	if _client_shot_ack_sent or replicator.confirmed_shots <= 0:
+		return
+	_client_shot_ack_sent = true
+	_ack_shot_observation.rpc_id(NetworkSession.HOST_PEER_ID)
+
+
+func _try_acknowledge_invasion_observations() -> void:
+	if _client_invasion_ack_sent or not (saw_breach_open and saw_invasion_warning and saw_enemy_inside and saw_invader_module_damage):
+		return
+	_client_invasion_ack_sent = true
+	_ack_invasion_observations.rpc_id(NetworkSession.HOST_PEER_ID)
+
+
 func _client_observation_conditions_met() -> bool:
 	return (
 		saw_remote_movement and saw_enemy_snapshot and saw_vehicle_damage and saw_vehicle_repair and
 		saw_wave_two and saw_victory and replicator.confirmed_shots > 0 and saw_dodge_state and
 		saw_downed_state and saw_revived_state and saw_departed_state and saw_returned_state and
 		saw_ability_state and saw_module_layout and saw_power_shutdown and saw_turret_overheat and
-		saw_turret_recovery
+		saw_turret_recovery and saw_breach_open and saw_breach_closed and saw_invasion_warning and
+		saw_enemy_inside and saw_invader_module_damage
 	)
 
 
@@ -276,9 +336,21 @@ func _ack_client_observations() -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable", 0)
+func _ack_shot_observation() -> void:
+	if NetworkSession.is_host_authority():
+		_client_shot_acknowledged = true
+
+
+@rpc("any_peer", "call_remote", "reliable", 0)
 func _ack_wave_two() -> void:
 	if NetworkSession.is_host_authority():
 		_client_wave_two_acknowledged = true
+
+
+@rpc("any_peer", "call_remote", "reliable", 0)
+func _ack_invasion_observations() -> void:
+	if NetworkSession.is_host_authority():
+		_client_invasion_acknowledged = true
 
 
 func _on_remote_player_snapshot(_peer_id: int, position_value: Vector2) -> void:
@@ -292,6 +364,25 @@ func _on_vehicle_snapshot(front_hp: float) -> void:
 		_lowest_front_hp = minf(_lowest_front_hp, front_hp)
 	if saw_vehicle_damage and front_hp > _lowest_front_hp + 1.0:
 		saw_vehicle_repair = true
+
+
+func _on_breach_snapshot(_front: bool, _rear: bool, roof: bool, _lower: bool) -> void:
+	if roof:
+		saw_breach_open = true
+	elif saw_breach_open:
+		saw_breach_closed = true
+
+
+func _on_enemy_invasion_snapshot(_enemy_net_id: int, inside_vehicle: bool, invasion_state: int) -> void:
+	saw_invasion_warning = saw_invasion_warning or invasion_state == EnemyUnit.InvasionState.ENTERING
+	saw_enemy_inside = saw_enemy_inside or inside_vehicle
+
+
+func _on_module_state_received(instance_id: int, hp: float) -> void:
+	if instance_id == _workbench_instance_id:
+		var workbench: VehicleModuleState = coordinator.module_system.modules.get(instance_id) as VehicleModuleState
+		if workbench != null and hp < workbench.definition.max_hp:
+			saw_invader_module_damage = true
 
 
 func _on_run_state(state: int, wave_index: int) -> void:
@@ -369,6 +460,7 @@ func _receive_final_test_state(host_hash: String, state: int, wave_index: int, h
 		saw_dodge_state, saw_downed_state, saw_revived_state, saw_departed_state, saw_returned_state,
 		saw_ability_state,
 		saw_module_layout, saw_power_shutdown, saw_turret_overheat, saw_turret_recovery,
+		saw_breach_open, saw_breach_closed, saw_invasion_warning, saw_enemy_inside, saw_invader_module_damage,
 		replicator.max_correction, average_correction
 	)
 
@@ -380,6 +472,7 @@ func _submit_network_test_report(
 	dodge_synced: bool, downed_synced: bool, revived_synced: bool, departed_synced: bool, returned_synced: bool,
 	ability_synced: bool,
 	module_layout_synced: bool, power_synced: bool, overheat_synced: bool, recovery_synced: bool,
+	breach_open_synced: bool, breach_closed_synced: bool, invasion_warning_synced: bool, enemy_inside_synced: bool, invader_module_damage_synced: bool,
 	client_max_correction: float, client_average_correction: float
 ) -> void:
 	if not NetworkSession.is_host_authority():
@@ -390,13 +483,15 @@ func _submit_network_test_report(
 		dodge_synced and downed_synced and revived_synced and departed_synced and returned_synced and
 		ability_synced and character_selection_pass and ability_authority_pass and
 		module_layout_synced and power_synced and overheat_synced and recovery_synced and
+		breach_open_synced and breach_closed_synced and invasion_warning_synced and enemy_inside_synced and invader_module_damage_synced and
 		module_layout_authority_pass and power_priority_pass and repair_cap_pass and repair_full_pass and turret_authority_pass and
+		breach_authority_pass and invasion_authority_pass and module_attack_authority_pass and breach_seal_authority_pass and
 		dodge_authority_pass and down_duration_pass and revive_authority_pass and return_authority_pass and
 		replicator.remote_inputs_received > 0 and replicator.confirmed_shots > 0
 	)
-	print("NETWORK_TEST_%s inputs=%d shots=%d kills=%d modules=%s power=%s repair=%s turret=%s characters=%s abilities=%s dodge=%s revive=%s return=%s hash=%s max_correction=%.3f avg_correction=%.3f" % [
+	print("NETWORK_TEST_%s inputs=%d shots=%d kills=%d breach=%s invasion=%s module_attack=%s seal=%s modules=%s power=%s repair=%s turret=%s characters=%s abilities=%s dodge=%s revive=%s return=%s hash=%s max_correction=%.3f avg_correction=%.3f" % [
 		"PASS" if passed else "FAIL", replicator.remote_inputs_received, replicator.confirmed_shots,
-		coordinator.reward_system.kills, module_layout_authority_pass, power_priority_pass, repair_cap_pass and repair_full_pass, turret_authority_pass, character_selection_pass, ability_authority_pass, dodge_authority_pass, revive_authority_pass,
+		coordinator.reward_system.kills, breach_authority_pass, invasion_authority_pass, module_attack_authority_pass, breach_seal_authority_pass, module_layout_authority_pass, power_priority_pass, repair_cap_pass and repair_full_pass, turret_authority_pass, character_selection_pass, ability_authority_pass, dodge_authority_pass, revive_authority_pass,
 		return_authority_pass, hash_matched, client_max_correction, client_average_correction,
 	])
 	_finish_network_test.rpc(passed)

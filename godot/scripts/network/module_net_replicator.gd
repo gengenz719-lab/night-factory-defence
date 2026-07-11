@@ -2,6 +2,7 @@ class_name ModuleNetReplicator
 extends Node
 
 signal request_rejected(message: String)
+signal module_state_received(instance_id: int, hp: float)
 
 const SNAPSHOT_INTERVAL: float = 0.2
 
@@ -94,6 +95,7 @@ func _confirm_priority(instance_id: int, priority_value: int) -> void:
 func _receive_module_state(instance_id: int, hp_value: float, powered_value: bool, heat_value: float, overheated_value: bool) -> void:
 	if not NetworkSession.is_host_authority():
 		module_system.apply_state(instance_id, hp_value, powered_value, heat_value, overheated_value)
+		module_state_received.emit(instance_id, hp_value)
 
 
 @rpc("authority", "call_remote", "reliable", 0)

@@ -75,7 +75,7 @@ func setup_network_run(run_seed: int) -> void:
 	build_ui.priority_requested.connect(module_net_replicator.request_priority)
 
 	var host_player := players_by_peer.get(NetworkSession.HOST_PEER_ID) as CrewPlayer
-	enemy_director.setup(vehicle_state, host_player, random_streams.wave)
+	enemy_director.setup(vehicle_state, host_player, random_streams.wave, players_by_peer, module_system)
 	enemy_director.authoritative = NetworkSession.is_host_authority()
 	reward_system.setup(random_streams.reward, relic_pool)
 	revive_controller.setup(players_by_peer, vehicle_state)
