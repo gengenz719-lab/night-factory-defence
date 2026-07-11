@@ -1,11 +1,22 @@
 extends Node2D
 
 const BackgroundScript := preload("res://scripts/game/scrolling_background.gd")
-const VehicleScript := preload("res://scripts/vehicle/survival_vehicle.gd")
-const PlayerScript := preload("res://scripts/actors/crew_player.gd")
-const EnemyScript := preload("res://scripts/actors/enemy_unit.gd")
+const VehicleScript := preload("res://scripts/game/survival_vehicle.gd")
+const PlayerScript := preload("res://scripts/game/crew_player.gd")
+const EnemyScript := preload("res://scripts/game/enemy_unit.gd")
 const ProjectileScript := preload("res://scripts/game/projectile.gd")
 const HudScript := preload("res://scripts/ui/game_hud.gd")
+const CatalogFixtureScript := preload("res://tests/catalog_fixture_definition.gd")
+
+const REQUIRED_INPUT_ACTIONS: Array[StringName] = [
+	&"move_left", &"move_right", &"jump", &"drop_down", &"aim",
+	&"fire_primary", &"fire_secondary", &"dodge", &"interact", &"ability",
+	&"ping", &"pause", &"ready_toggle",
+]
+const REQUIRED_PHYSICS_LAYERS: Array[String] = [
+	"Player", "PlayerProjectile", "Enemy", "EnemyProjectile", "VehicleInterior",
+	"VehicleExterior", "Module", "Interactable", "Pickup", "Hazard",
+]
 
 enum RunState { PREPARE, COMBAT, REWARD, VICTORY, DEFEAT }
 
@@ -28,7 +39,6 @@ var hud: GameHUD
 
 
 func _ready() -> void:
-	_ensure_input_map()
 	rng.seed = 7192026
 
 	background = BackgroundScript.new() as ScrollingBackground
@@ -53,14 +63,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if Input.is_action_just_pressed(&"restart") and state in [RunState.VICTORY, RunState.DEFEAT]:
-		get_tree().reload_current_scene()
-		return
-
 	match state:
 		RunState.PREPARE:
 			state_time -= delta
-			if Input.is_action_just_pressed(&"start_now") or state_time <= 0.0:
+			if state_time <= 0.0:
 				_begin_combat()
 		RunState.COMBAT:
 			state_time -= delta
@@ -68,8 +74,6 @@ func _process(delta: float) -> void:
 			if spawn_time <= 0.0:
 				_spawn_enemy()
 				spawn_time = 1.45 if wave == 1 else 1.05
-			if Input.is_action_just_pressed(&"skip_wave"):
-				state_time = 0.0
 			if state_time <= 0.0:
 				_finish_wave()
 		_:
@@ -189,38 +193,6 @@ func _state_text() -> String:
 	return ""
 
 
-func _ensure_input_map() -> void:
-	_add_key_action(&"move_left", [KEY_A, KEY_LEFT])
-	_add_key_action(&"move_right", [KEY_D, KEY_RIGHT])
-	_add_key_action(&"jump", [KEY_SPACE, KEY_W, KEY_UP])
-	_add_key_action(&"drop_down", [KEY_S, KEY_DOWN])
-	_add_key_action(&"interact", [KEY_E])
-	_add_key_action(&"restart", [KEY_R])
-	_add_key_action(&"start_now", [KEY_F1])
-	_add_key_action(&"skip_wave", [KEY_F2])
-	_add_mouse_action(&"fire_primary", MOUSE_BUTTON_LEFT)
-
-
-func _add_key_action(action: StringName, keys: Array[int]) -> void:
-	if not InputMap.has_action(action):
-		InputMap.add_action(action)
-	for keycode: int in keys:
-		var event := InputEventKey.new()
-		event.keycode = keycode as Key
-		event.physical_keycode = keycode as Key
-		if not InputMap.action_has_event(action, event):
-			InputMap.action_add_event(action, event)
-
-
-func _add_mouse_action(action: StringName, button_index: MouseButton) -> void:
-	if not InputMap.has_action(action):
-		InputMap.add_action(action)
-	var event := InputEventMouseButton.new()
-	event.button_index = button_index
-	if not InputMap.action_has_event(action, event):
-		InputMap.action_add_event(action, event)
-
-
 func _unhandled_input(event: InputEvent) -> void:
 	# デバッグ短縮キーは埋め込みゲームでも確実に受け取れるよう直接処理する。
 	if event is not InputEventKey or not event.pressed or event.echo:
@@ -237,6 +209,35 @@ func _unhandled_input(event: InputEvent) -> void:
 func _run_smoke_test() -> void:
 	var failures: Array[String] = []
 	await get_tree().process_frame
+
+	# Catalog本体と、空ID・重複ID・無効参照の検出器を確認する。
+	var catalog_errors: PackedStringArray = GameCatalog.reload_catalog()
+	for catalog_error: String in catalog_errors:
+		failures.append("catalog: %s" % catalog_error)
+	var empty_definition := GameDefinition.new()
+	var duplicate_a := GameDefinition.new()
+	duplicate_a.id = &"test_duplicate"
+	var duplicate_b := GameDefinition.new()
+	duplicate_b.id = &"test_duplicate"
+	var missing_reference := CatalogFixtureScript.new() as CatalogFixtureDefinition
+	missing_reference.id = &"test_missing_reference"
+	missing_reference.referenced_ids = [&"test_not_registered"]
+	var invalid_definitions: Array[GameDefinition] = [empty_definition, duplicate_a, duplicate_b, missing_reference]
+	var expected_errors: PackedStringArray = GameCatalog.validate_definitions(invalid_definitions)
+	if expected_errors.size() != 3:
+		failures.append("catalog validation coverage mismatch: %d" % expected_errors.size())
+
+	# Autoload、InputMap、衝突レイヤーがproject.godotへ固定されていることを確認する。
+	for autoload_name: String in ["AppState", "GameCatalog", "NetworkSession", "SaveService", "AudioService"]:
+		if get_node_or_null("/root/%s" % autoload_name) == null:
+			failures.append("autoload missing: %s" % autoload_name)
+	for action_name: StringName in REQUIRED_INPUT_ACTIONS:
+		if not InputMap.has_action(action_name):
+			failures.append("input action missing: %s" % action_name)
+	for layer_index: int in REQUIRED_PHYSICS_LAYERS.size():
+		var setting_name: String = "layer_names/2d_physics/layer_%d" % (layer_index + 1)
+		if str(ProjectSettings.get_setting(setting_name, "")) != REQUIRED_PHYSICS_LAYERS[layer_index]:
+			failures.append("physics layer mismatch: %s" % setting_name)
 
 	# Wave開始と敵生成
 	_begin_combat()
