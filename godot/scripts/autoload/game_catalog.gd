@@ -4,7 +4,8 @@ extends Node
 ## パス列挙はエクスポート後もResourceLoaderのremap解決を通る。
 
 const DEFINITION_PATHS: PackedStringArray = [
-	"res://data/characters/character_survivor.tres",
+	"res://data/characters/character_gunner.tres",
+	"res://data/characters/character_engineer.tres",
 	"res://data/enemies/enemy_walker.tres",
 	"res://data/enemies/enemy_runner.tres",
 	"res://data/enemies/enemy_climber.tres",
@@ -15,6 +16,7 @@ const DEFINITION_PATHS: PackedStringArray = [
 	"res://data/stages/wave_01.tres",
 	"res://data/stages/wave_02.tres",
 	"res://data/weapons/weapon_rifle.tres",
+	"res://data/weapons/weapon_revolver.tres",
 ]
 
 var _definitions: Dictionary[StringName, GameDefinition] = {}

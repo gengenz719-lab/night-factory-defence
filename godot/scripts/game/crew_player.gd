@@ -17,7 +17,12 @@ var on_floor: bool = true
 var controls_enabled: bool = true
 var damage_multiplier: float = 1.0
 var repair_multiplier: float = 1.0
+var operation_multiplier: float = 1.0
 var fire_cooldown: float = 0.0
+var ammunition: int = 0
+var reload_time: float = 0.0
+var ability_active_time: float = 0.0
+var ability_cooldown: float = 0.0
 var survival := PlayerSurvivalState.new()
 var dodge_visual_time: float = 0.0
 var _climb_target_level: int = -1
@@ -52,12 +57,15 @@ func setup(target_vehicle: VehicleState, character_data: CharacterDefinition, we
 	vehicle = target_vehicle
 	definition = character_data
 	weapon_definition = weapon_data
+	ammunition = weapon_definition.magazine_size
 	survival.setup(definition)
 	survival.downed.connect(_on_downed)
 	survival.departed.connect(_on_departed)
 	survival.revived.connect(_on_revived)
 	survival.returned.connect(_on_returned)
 	repair_multiplier = definition.repair_speed_multiplier
+	operation_multiplier = definition.operation_speed_multiplier
+	damage_multiplier = definition.weapon_damage_multiplier
 	position = Vector2(590, vehicle.floor_y(0) - HALF_HEIGHT)
 	z_index = 30
 	queue_redraw()
@@ -124,10 +132,40 @@ func apply_prediction_motion(axis: Vector2, delta: float) -> void:
 
 
 func consume_fire_request() -> bool:
-	if fire_cooldown > 0.0 or survival.is_downed or survival.is_departed or not controls_enabled or _is_repairing:
+	if fire_cooldown > 0.0 or reload_time > 0.0 or survival.is_downed or survival.is_departed or not controls_enabled or _is_repairing:
 		return false
-	fire_cooldown = 1.0 / weapon_definition.shots_per_second
+	if ammunition <= 0:
+		_start_reload()
+		return false
+	var attack_speed_multiplier: float = definition.ability_attack_speed_multiplier if ability_active_time > 0.0 and definition.ability_id == &"combat_focus" else 1.0
+	fire_cooldown = 1.0 / (weapon_definition.shots_per_second * attack_speed_multiplier)
+	ammunition -= 1
+	if ammunition <= 0:
+		_start_reload()
 	return true
+
+
+func authority_request_ability() -> bool:
+	if ability_cooldown > 0.0 or survival.is_downed or survival.is_departed or not controls_enabled:
+		return false
+	ability_active_time = definition.ability_duration_seconds
+	ability_cooldown = definition.ability_cooldown_seconds
+	return true
+
+
+func effective_fire_interval() -> float:
+	var multiplier: float = definition.ability_attack_speed_multiplier if ability_active_time > 0.0 and definition.ability_id == &"combat_focus" else 1.0
+	return 1.0 / (weapon_definition.shots_per_second * multiplier)
+
+
+func effective_reload_seconds() -> float:
+	var multiplier: float = definition.ability_reload_speed_multiplier if ability_active_time > 0.0 and definition.ability_id == &"combat_focus" else 1.0
+	return weapon_definition.reload_seconds / multiplier
+
+
+func _start_reload() -> void:
+	if reload_time <= 0.0:
+		reload_time = effective_reload_seconds()
 
 
 func apply_network_snapshot(
@@ -140,12 +178,16 @@ func apply_network_snapshot(
 	dodge_cooldown_value: float,
 	down_time: float,
 	return_time_value: float,
-	revive_progress_value: float
+	revive_progress_value: float,
+	ability_active_value: float,
+	ability_cooldown_value: float
 ) -> void:
 	survival.apply_snapshot(
 		health, downed, departed, invulnerability, dodge_cooldown_value,
 		down_time, return_time_value, revive_progress_value
 	)
+	ability_active_time = maxf(0.0, ability_active_value)
+	ability_cooldown = maxf(0.0, ability_cooldown_value)
 	if invulnerability > 0.0 and dodge_cooldown_value > 0.0:
 		dodge_visual_time = maxf(dodge_visual_time, invulnerability)
 	aim_position = authoritative_position + aim.normalized() * 200.0
@@ -163,9 +205,25 @@ func take_damage(amount: float) -> void:
 
 
 func authority_tick(delta: float) -> void:
-	fire_cooldown = maxf(0.0, fire_cooldown - delta)
-	dodge_visual_time = maxf(0.0, dodge_visual_time - delta)
+	_tick_action_timers(delta)
+	if ability_active_time > 0.0 and definition.ability_id == &"repair_drone":
+		vehicle.repair_without_supplies(definition.ability_repair_hp_per_second * delta)
 	survival.authority_tick(delta)
+
+
+func client_tick(delta: float) -> void:
+	_tick_action_timers(delta)
+
+
+func _tick_action_timers(delta: float) -> void:
+	fire_cooldown = maxf(0.0, fire_cooldown - delta)
+	if reload_time > 0.0:
+		reload_time = maxf(0.0, reload_time - delta)
+		if reload_time <= 0.0:
+			ammunition = weapon_definition.magazine_size
+	ability_active_time = maxf(0.0, ability_active_time - delta)
+	ability_cooldown = maxf(0.0, ability_cooldown - delta)
+	dodge_visual_time = maxf(0.0, dodge_visual_time - delta)
 
 
 func authority_request_dodge(axis: Vector2, aim: Vector2) -> bool:

@@ -142,7 +142,8 @@ func update_team_status(players_by_peer: Dictionary, local_peer_id: int, kills: 
 			]
 		elif crew.survival.is_departed:
 			state_text = "離脱中  復帰 %.0fs" % crew.survival.return_time
-		lines.append("%sP%d  %s  回避CD %.1fs" % [marker, index + 1, state_text, crew.survival.dodge_cooldown])
+		var ability_text: String = "%s %.1fs" % [crew.definition.ability_name, crew.ability_active_time] if crew.ability_active_time > 0.0 else "%s CD %.1fs" % [crew.definition.ability_name, crew.ability_cooldown]
+		lines.append("%sP%d %s  %s  回避CD %.1fs  %s" % [marker, index + 1, crew.definition.role_name, state_text, crew.survival.dodge_cooldown, ability_text])
 	lines.append("チーム撃破 %d" % kills)
 	player_label.text = "\n".join(lines)
 

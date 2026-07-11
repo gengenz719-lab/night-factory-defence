@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/character_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"character_engineer"
+display_name_key = &"character.engineer.name"
+description_key = &"character.engineer.description"
+tags = Array[StringName]([&"character", &"engineer"])
+role_name = "Engineer"
+repair_speed_multiplier = 1.35
+operation_speed_multiplier = 1.15
+starting_weapon_id = &"weapon_revolver"
+ability_id = &"repair_drone"
+ability_name = "Repair Drone"
+ability_duration_seconds = 8.0
+ability_cooldown_seconds = 24.0
+ability_repair_hp_per_second = 12.0

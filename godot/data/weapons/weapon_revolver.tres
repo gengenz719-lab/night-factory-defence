@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/weapon_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"weapon_revolver"
+display_name_key = &"weapon.revolver.name"
+description_key = &"weapon.revolver.description"
+tags = Array[StringName]([&"weapon", &"revolver"])
+damage_per_shot = 32.0
+shots_per_second = 1.8
+magazine_size = 6
+reload_seconds = 2.0
+projectile_speed_px = 900.0
+projectile_lifetime_seconds = 2.2
+projectile_hit_radius_px = 25.0

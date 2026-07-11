@@ -76,6 +76,18 @@ func repair_at(player_position: Vector2, delta: float, player_multiplier: float)
 	return true
 
 
+func repair_without_supplies(amount: float) -> bool:
+	var target: StringName = _lowest_damaged_section()
+	if target != &"":
+		section_hp[target] = minf(float(max_section_hp[target]), float(section_hp[target]) + amount)
+	elif hull < max_hull:
+		hull = minf(max_hull, hull + amount)
+	else:
+		return false
+	values_changed.emit()
+	return true
+
+
 func apply_relic(relic: RelicDefinition) -> void:
 	for key: StringName in max_section_hp:
 		var old_max: float = float(max_section_hp[key])
