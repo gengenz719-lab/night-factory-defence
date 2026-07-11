@@ -1,7 +1,6 @@
 class_name CrewPlayer
 extends Node2D
 
-signal shoot_requested(origin: Vector2, direction: Vector2, damage: float)
 signal health_changed
 
 const BODY_TEXTURE: Texture2D = preload("res://assets/art/actors/crew_survivor.png")
@@ -16,14 +15,11 @@ var current_level: int = 0
 var vertical_velocity: float = 0.0
 var on_floor: bool = true
 var controls_enabled: bool = true
-var max_hp: float = 0.0
-var hp: float = 0.0
 var damage_multiplier: float = 1.0
 var repair_multiplier: float = 1.0
 var fire_cooldown: float = 0.0
-var invulnerable_time: float = 0.0
-var downed_time: float = 0.0
-var is_downed: bool = false
+var survival := PlayerSurvivalState.new()
+var dodge_visual_time: float = 0.0
 var _climb_target_level: int = -1
 var _is_repairing: bool = false
 var aim_position: Vector2 = Vector2.RIGHT
@@ -56,8 +52,11 @@ func setup(target_vehicle: VehicleState, character_data: CharacterDefinition, we
 	vehicle = target_vehicle
 	definition = character_data
 	weapon_definition = weapon_data
-	max_hp = definition.max_hp
-	hp = max_hp
+	survival.setup(definition)
+	survival.downed.connect(_on_downed)
+	survival.departed.connect(_on_departed)
+	survival.revived.connect(_on_revived)
+	survival.returned.connect(_on_returned)
 	repair_multiplier = definition.repair_speed_multiplier
 	position = Vector2(590, vehicle.floor_y(0) - HALF_HEIGHT)
 	z_index = 30
@@ -65,68 +64,10 @@ func setup(target_vehicle: VehicleState, character_data: CharacterDefinition, we
 
 
 func _physics_process(delta: float) -> void:
-	fire_cooldown = maxf(0.0, fire_cooldown - delta)
-	invulnerable_time = maxf(0.0, invulnerable_time - delta)
-	aim_position = get_global_mouse_position()
-	if network_controlled:
-		if peer_id != NetworkSession.local_peer_id():
-			position = position.lerp(replica_target_position, minf(1.0, delta / 0.1))
-		_update_visuals()
-		queue_redraw()
-		return
-
-	if is_downed:
-		downed_time -= delta
-		if downed_time <= 0.0:
-			_respawn()
-		_update_visuals()
-		queue_redraw()
-		return
-
-	if not controls_enabled or vehicle == null:
-		_update_visuals()
-		queue_redraw()
-		return
-
-	_handle_climbing(delta)
-	if _climb_target_level < 0:
-		_handle_movement(delta)
-	_handle_actions(delta)
+	if peer_id != NetworkSession.local_peer_id():
+		position = position.lerp(replica_target_position, minf(1.0, delta / 0.1))
 	_update_visuals()
 	queue_redraw()
-
-
-func _handle_movement(delta: float) -> void:
-	var axis: float = Input.get_axis(&"move_left", &"move_right")
-	position.x += axis * definition.move_speed_cells_per_second * CELL_SIZE_PX * delta
-	# 短いタップでも動いたことが分かる最小ステップ。押し続け移動と併用する。
-	if Input.is_action_just_pressed(&"move_left"):
-		position.x -= definition.tap_move_step_px
-	if Input.is_action_just_pressed(&"move_right"):
-		position.x += definition.tap_move_step_px
-	position.x = clampf(position.x, SurvivalVehicle.LEFT_X + 18.0, SurvivalVehicle.RIGHT_X - 18.0)
-
-	if Input.is_action_just_pressed(&"jump") and on_floor:
-		if absf(position.x - SurvivalVehicle.LADDER_X) < 54.0 and current_level < 2:
-			_climb_target_level = current_level + 1
-			on_floor = false
-		else:
-			vertical_velocity = -sqrt(2.0 * definition.gravity_px * definition.jump_height_cells * CELL_SIZE_PX)
-			on_floor = false
-
-	if Input.is_action_just_pressed(&"drop_down") and on_floor:
-		if absf(position.x - SurvivalVehicle.LADDER_X) < 54.0 and current_level > 0:
-			_climb_target_level = current_level - 1
-			on_floor = false
-
-	if not on_floor:
-		vertical_velocity += definition.gravity_px * delta
-		position.y += vertical_velocity * delta
-		var floor_center: float = vehicle.floor_y(current_level) - HALF_HEIGHT
-		if vertical_velocity >= 0.0 and position.y >= floor_center:
-			position.y = floor_center
-			vertical_velocity = 0.0
-			on_floor = true
 
 
 func _handle_climbing(delta: float) -> void:
@@ -142,23 +83,8 @@ func _handle_climbing(delta: float) -> void:
 		on_floor = true
 
 
-func _handle_actions(delta: float) -> void:
-	_is_repairing = false
-	if Input.is_action_just_pressed(&"interact"):
-		# タップ時にも5HP相当の修理を行い、入力フィードバックを返す。
-		_is_repairing = vehicle.repair_at(position, definition.repair_tap_seconds, repair_multiplier)
-	elif Input.is_action_pressed(&"interact"):
-		_is_repairing = vehicle.repair_at(position, delta, repair_multiplier)
-
-	if Input.is_action_pressed(&"fire_primary") and fire_cooldown <= 0.0 and not _is_repairing:
-		var direction: Vector2 = position.direction_to(aim_position)
-		if direction.length_squared() > 0.1:
-			shoot_requested.emit(position + direction * 38.0, direction, weapon_definition.damage_per_shot * damage_multiplier)
-			fire_cooldown = 1.0 / weapon_definition.shots_per_second
-
-
-func apply_network_input(axis: Vector2, aim: Vector2, delta: float, wants_repair: bool) -> void:
-	if is_downed or not controls_enabled:
+func apply_network_input(axis: Vector2, aim: Vector2, delta: float, wants_interact: bool) -> void:
+	if survival.is_downed or survival.is_departed or not controls_enabled:
 		return
 	var safe_axis: Vector2 = axis.limit_length(1.0)
 	if _climb_target_level >= 0:
@@ -168,7 +94,7 @@ func apply_network_input(axis: Vector2, aim: Vector2, delta: float, wants_repair
 		_handle_network_vertical(safe_axis.y, delta)
 	position.x = clampf(position.x, SurvivalVehicle.LEFT_X + 18.0, SurvivalVehicle.RIGHT_X - 18.0)
 	aim_position = position + (aim.normalized() if aim.length_squared() > 0.001 else Vector2.RIGHT) * 200.0
-	_is_repairing = wants_repair and vehicle.repair_at(position, delta, repair_multiplier)
+	_is_repairing = wants_interact
 
 
 func _handle_network_vertical(vertical_axis: float, delta: float) -> void:
@@ -198,15 +124,30 @@ func apply_prediction_motion(axis: Vector2, delta: float) -> void:
 
 
 func consume_fire_request() -> bool:
-	if fire_cooldown > 0.0 or is_downed or not controls_enabled or _is_repairing:
+	if fire_cooldown > 0.0 or survival.is_downed or survival.is_departed or not controls_enabled or _is_repairing:
 		return false
 	fire_cooldown = 1.0 / weapon_definition.shots_per_second
 	return true
 
 
-func apply_network_snapshot(authoritative_position: Vector2, aim: Vector2, health: float, downed: bool) -> void:
-	hp = clampf(health, 0.0, max_hp)
-	is_downed = downed
+func apply_network_snapshot(
+	authoritative_position: Vector2,
+	aim: Vector2,
+	health: float,
+	downed: bool,
+	departed: bool,
+	invulnerability: float,
+	dodge_cooldown_value: float,
+	down_time: float,
+	return_time_value: float,
+	revive_progress_value: float
+) -> void:
+	survival.apply_snapshot(
+		health, downed, departed, invulnerability, dodge_cooldown_value,
+		down_time, return_time_value, revive_progress_value
+	)
+	if invulnerability > 0.0 and dodge_cooldown_value > 0.0:
+		dodge_visual_time = maxf(dodge_visual_time, invulnerability)
 	aim_position = authoritative_position + aim.normalized() * 200.0
 	if peer_id == NetworkSession.local_peer_id():
 		position = authoritative_position
@@ -215,38 +156,74 @@ func apply_network_snapshot(authoritative_position: Vector2, aim: Vector2, healt
 
 
 func take_damage(amount: float) -> void:
-	if invulnerable_time > 0.0 or is_downed:
-		return
-	hp = maxf(0.0, hp - amount)
-	invulnerable_time = definition.damage_invulnerability_seconds
+	if survival.take_damage(amount):
+		if not survival.is_downed:
+			survival.invulnerable_time = definition.damage_invulnerability_seconds
+		health_changed.emit()
+
+
+func authority_tick(delta: float) -> void:
+	fire_cooldown = maxf(0.0, fire_cooldown - delta)
+	dodge_visual_time = maxf(0.0, dodge_visual_time - delta)
+	survival.authority_tick(delta)
+
+
+func authority_request_dodge(axis: Vector2, aim: Vector2) -> bool:
+	if not controls_enabled or not survival.try_dodge():
+		return false
+	var direction_x: float = axis.x
+	if absf(direction_x) < 0.1:
+		direction_x = aim.x
+	if absf(direction_x) < 0.1:
+		direction_x = 1.0
+	position.x += signf(direction_x) * definition.dodge_distance_cells * CELL_SIZE_PX
+	position.x = clampf(position.x, SurvivalVehicle.LEFT_X + 18.0, SurvivalVehicle.RIGHT_X - 18.0)
+	dodge_visual_time = definition.dodge_invulnerability_seconds
+	return true
+
+
+func authority_add_revive_progress(delta: float) -> bool:
+	return survival.add_revive_progress(delta)
+
+
+func _on_downed() -> void:
+	controls_enabled = false
 	health_changed.emit()
-	if hp <= 0.0:
-		is_downed = true
-		downed_time = definition.downed_grace_seconds
-		controls_enabled = false
 
 
-func _respawn() -> void:
-	is_downed = false
-	hp = max_hp * definition.respawn_health_ratio
-	current_level = 0
-	position = Vector2(590, vehicle.floor_y(0) - HALF_HEIGHT)
+func _on_departed() -> void:
+	controls_enabled = false
+	health_changed.emit()
+
+
+func _on_revived() -> void:
 	controls_enabled = true
-	invulnerable_time = 2.0
+	health_changed.emit()
+
+
+func _on_returned() -> void:
+	current_level = 0
+	position = Vector2(SurvivalVehicle.REPAIR_CONSOLE.x, vehicle.floor_y(0) - HALF_HEIGHT)
+	replica_target_position = position
+	controls_enabled = true
 	health_changed.emit()
 
 
 func apply_relic(relic: RelicDefinition) -> void:
 	damage_multiplier *= relic.weapon_damage_multiplier
 	if relic.wave_end_player_heal > 0.0:
-		hp = minf(max_hp, hp + relic.wave_end_player_heal)
+		survival.hp = minf(survival.max_hp, survival.hp + relic.wave_end_player_heal)
 		health_changed.emit()
 
 
 func _draw() -> void:
-	if is_downed:
+	if survival.is_departed:
+		draw_string(ThemeDB.fallback_font, Vector2(-42, -30), "RETURN %.0f" % survival.return_time, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
+		return
+	if survival.is_downed:
 		draw_circle(Vector2.ZERO, 18.0, Color("#7b3441"))
-		draw_string(ThemeDB.fallback_font, Vector2(-34, -30), "DOWN %.0f" % downed_time, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
+		draw_arc(Vector2.ZERO, 25.0, -PI * 0.5, -PI * 0.5 + TAU * clampf(survival.revive_progress / definition.revive_seconds, 0.0, 1.0), 20, Color("#78f0d2"), 3.0)
+		draw_string(ThemeDB.fallback_font, Vector2(-34, -30), "DOWN %.0f" % survival.downed_time, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE)
 		return
 
 	if _is_repairing:
@@ -256,9 +233,9 @@ func _draw() -> void:
 func _update_visuals() -> void:
 	if _body_sprite == null or _weapon_sprite == null:
 		return
-	_body_sprite.visible = not is_downed
-	_weapon_sprite.visible = not is_downed
-	if is_downed:
+	_body_sprite.visible = not survival.is_downed and not survival.is_departed
+	_weapon_sprite.visible = not survival.is_downed and not survival.is_departed
+	if survival.is_downed or survival.is_departed:
 		return
 	var local_aim: Vector2 = (aim_position - global_position).normalized()
 	if local_aim.length_squared() < 0.1:
@@ -267,6 +244,6 @@ func _update_visuals() -> void:
 	_weapon_sprite.position = local_aim * 17.0 + Vector2(0.0, -2.0)
 	_weapon_sprite.rotation = local_aim.angle()
 	_weapon_sprite.flip_v = local_aim.x < 0.0
-	var flash_color: Color = Color("#d8f7ff") if invulnerable_time > 0.0 else Color.WHITE
+	var flash_color: Color = Color("#78f0d2") if dodge_visual_time > 0.0 else Color("#d8f7ff") if survival.invulnerable_time > 0.0 else Color.WHITE
 	_body_sprite.modulate = flash_color
 	_weapon_sprite.modulate = flash_color

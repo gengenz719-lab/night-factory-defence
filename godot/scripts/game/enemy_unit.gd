@@ -73,10 +73,10 @@ func _process(delta: float) -> void:
 		inside_vehicle = true
 
 	if inside_vehicle:
-		var target: Vector2 = player.position if not player.is_downed else Vector2(SurvivalVehicle.LADDER_X, SurvivalVehicle.LOWER_FLOOR_Y - 25.0)
+		var target: Vector2 = player.position if not player.survival.is_downed and not player.survival.is_departed else Vector2(SurvivalVehicle.LADDER_X, SurvivalVehicle.LOWER_FLOOR_Y - 25.0)
 		position = position.move_toward(target, speed * delta)
 		if position.distance_to(target) < definition.interior_attack_range_px and attack_cooldown <= 0.0:
-			if player.is_downed:
+			if player.survival.is_downed or player.survival.is_departed:
 				vehicle.take_attack(section, exterior_dps * definition.attack_interval_seconds)
 			else:
 				player.take_damage(player_damage)

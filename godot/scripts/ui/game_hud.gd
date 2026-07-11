@@ -27,7 +27,7 @@ func _ready() -> void:
 	ui_theme.default_font_size = 18
 	root_control.theme = ui_theme
 
-	player_label = _make_label(Vector2(20, 18), Vector2(350, 100), 19, Color("#e9f5ff"))
+	player_label = _make_label(Vector2(20, 18), Vector2(420, 170), 17, Color("#e9f5ff"))
 	wave_label = _make_label(Vector2(615, 16), Vector2(370, 86), 28, Color.WHITE)
 	wave_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vehicle_label = _make_label(Vector2(1210, 18), Vector2(370, 125), 18, Color("#f7ead8"))
@@ -36,7 +36,7 @@ func _ready() -> void:
 	message_label = _make_label(Vector2(520, 730), Vector2(560, 80), 20, Color("#7ef1d4"))
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-	_make_panel(Rect2(10, 10, 365, 112), Color(0.04, 0.06, 0.09, 0.86), -1)
+	_make_panel(Rect2(10, 10, 435, 182), Color(0.04, 0.06, 0.09, 0.86), -1)
 	_make_panel(Rect2(600, 10, 400, 92), Color(0.04, 0.06, 0.09, 0.90), -1)
 	_make_panel(Rect2(1200, 10, 390, 145), Color(0.04, 0.06, 0.09, 0.86), -1)
 
@@ -111,9 +111,7 @@ func _build_overlay() -> void:
 	box.add_child(end_label)
 
 
-func update_status(wave: int, max_wave: int, state_text: String, time_left: float, player: CrewPlayer, vehicle: VehicleState, kills: int, relics: Array[RelicDefinition]) -> void:
-	var hp_text: String = "DOWN" if player.is_downed else "%d / %d" % [roundi(player.hp), roundi(player.max_hp)]
-	player_label.text = "P1  ガンナー\nHP  %s\n撃破  %d" % [hp_text, kills]
+func update_status(wave: int, max_wave: int, state_text: String, time_left: float, _player: CrewPlayer, vehicle: VehicleState, kills: int, relics: Array[RelicDefinition]) -> void:
 	wave_label.text = "WAVE %d / %d\n%s   %02d:%02d" % [wave, max_wave, state_text, floori(time_left) / 60, floori(time_left) % 60]
 	vehicle_label.text = "車体  %d / %d\n前 %.0f%%  屋根 %.0f%%  後 %.0f%%\n補給 %d   レリック %d" % [
 		roundi(vehicle.hull), roundi(vehicle.max_hull),
@@ -122,8 +120,31 @@ func update_status(wave: int, max_wave: int, state_text: String, time_left: floa
 		vehicle.section_ratio(&"rear") * 100.0,
 		roundi(vehicle.supplies), relics.size(),
 	]
-	help_label.text = "A/D 移動  SPACE ジャンプ/はしご↑  S はしご↓\n左クリック 射撃  E 工作台で修理  F1 即開始  F2 Wave短縮"
+	help_label.text = "A/D 移動  SPACE ジャンプ  SHIFT 回避\n左クリック 射撃  E 修理/味方蘇生  F1 即開始  F2 Wave短縮"
 	message_label.text = "取得: %s" % " / ".join(_relic_names(relics)) if not relics.is_empty() else "車両を守りながらWaveを耐えろ"
+
+
+func update_team_status(players_by_peer: Dictionary, local_peer_id: int, kills: int) -> void:
+	var lines := PackedStringArray()
+	var peer_ids: Array[int] = []
+	for peer_key: Variant in players_by_peer:
+		peer_ids.append(int(peer_key))
+	peer_ids.sort()
+	for index: int in peer_ids.size():
+		var peer_id: int = peer_ids[index]
+		var crew := players_by_peer[peer_id] as CrewPlayer
+		var marker: String = "▶" if peer_id == local_peer_id else " "
+		var state_text: String = "HP %d/%d" % [roundi(crew.survival.hp), roundi(crew.survival.max_hp)]
+		if crew.survival.is_downed:
+			state_text = "DOWN %.0fs  蘇生 %.0f%%" % [
+				crew.survival.downed_time,
+				100.0 * crew.survival.revive_progress / crew.definition.revive_seconds,
+			]
+		elif crew.survival.is_departed:
+			state_text = "離脱中  復帰 %.0fs" % crew.survival.return_time
+		lines.append("%sP%d  %s  回避CD %.1fs" % [marker, index + 1, state_text, crew.survival.dodge_cooldown])
+	lines.append("チーム撃破 %d" % kills)
+	player_label.text = "\n".join(lines)
 
 
 func show_relic_choices(choices: Array[RelicDefinition]) -> void:
