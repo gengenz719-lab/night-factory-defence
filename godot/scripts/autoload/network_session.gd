@@ -4,6 +4,7 @@ signal session_state_changed
 signal session_ready
 signal session_failed(message: String)
 signal peer_roster_changed
+signal character_roster_changed
 signal run_requested(run_seed: int)
 
 enum SessionRole { NONE, SOLO, HOST, CLIENT }
@@ -18,6 +19,7 @@ var status_text: String = "未接続"
 var offered_version: String = ""
 var ready_peers: Dictionary = {}
 var accepted_peers: Dictionary = {}
+var selected_characters: Dictionary = {}
 var expected_player_count: int = 1
 var cached_local_peer_id: int = HOST_PEER_ID
 
@@ -83,6 +85,7 @@ func disconnect_session() -> void:
 	role = SessionRole.NONE
 	ready_peers.clear()
 	accepted_peers.clear()
+	selected_characters.clear()
 	expected_player_count = 1
 	_set_status("未接続")
 
@@ -100,17 +103,36 @@ func connected_peer_ids() -> Array[int]:
 	for peer_id: int in accepted_peers:
 		if peer_id != HOST_PEER_ID:
 			result.append(peer_id)
+	for peer_key: Variant in selected_characters:
+		var peer_id: int = int(peer_key)
+		if not result.has(peer_id):
+			result.append(peer_id)
 	result.sort()
 	return result
 
 
 func set_local_ready(value: bool) -> void:
+	if value and not selected_characters.has(local_peer_id()):
+		_fail("キャラクターを選択してください")
+		return
 	if role == SessionRole.CLIENT:
+		ready_peers[local_peer_id()] = value
 		_submit_ready.rpc_id(HOST_PEER_ID, value)
 	elif is_host_authority():
 		ready_peers[HOST_PEER_ID] = value
 		peer_roster_changed.emit()
 		_try_start_run()
+
+
+func request_character_selection(character_id: StringName) -> void:
+	if role == SessionRole.CLIENT:
+		_submit_character_selection.rpc_id(HOST_PEER_ID, String(character_id))
+	elif is_host_authority():
+		_confirm_character_for_peer(HOST_PEER_ID, character_id)
+
+
+func selected_character(peer_id: int) -> StringName:
+	return StringName(str(selected_characters.get(peer_id, "")))
 
 
 func request_run_start(run_seed: int) -> void:
@@ -124,6 +146,8 @@ func _try_start_run() -> void:
 	if not is_host_authority() or accepted_peers.size() < expected_player_count:
 		return
 	for peer_id: int in accepted_peers:
+		if not selected_characters.has(peer_id):
+			return
 		if not bool(ready_peers.get(peer_id, false)):
 			return
 	var seed_value: int = int(Time.get_unix_time_from_system() * 1000.0) ^ Time.get_ticks_msec()
@@ -141,6 +165,8 @@ func _request_version(version: String) -> void:
 		return
 	accepted_peers[sender_id] = true
 	_accept_version.rpc_id(sender_id, AppState.GAME_VERSION)
+	for peer_key: Variant in selected_characters:
+		_confirm_character_selection.rpc_id(sender_id, int(peer_key), str(selected_characters[peer_key]))
 	peer_roster_changed.emit()
 
 
@@ -166,9 +192,39 @@ func _submit_ready(value: bool) -> void:
 	var sender_id: int = multiplayer.get_remote_sender_id()
 	if not accepted_peers.has(sender_id):
 		return
+	if value and not selected_characters.has(sender_id):
+		return
 	ready_peers[sender_id] = value
 	peer_roster_changed.emit()
 	_try_start_run()
+
+
+@rpc("any_peer", "call_remote", "reliable", 0)
+func _submit_character_selection(character_id: String) -> void:
+	if role != SessionRole.HOST:
+		return
+	var sender_id: int = multiplayer.get_remote_sender_id()
+	if accepted_peers.has(sender_id):
+		_confirm_character_for_peer(sender_id, StringName(character_id))
+
+
+func _confirm_character_for_peer(peer_id: int, character_id: StringName) -> void:
+	var definition := GameCatalog.get_definition(character_id) as CharacterDefinition
+	if definition == null or not definition.tags.has(&"character"):
+		return
+	selected_characters[peer_id] = character_id
+	ready_peers[peer_id] = false
+	_confirm_character_selection.rpc(peer_id, String(character_id))
+	character_roster_changed.emit()
+	peer_roster_changed.emit()
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _confirm_character_selection(peer_id: int, character_id: String) -> void:
+	selected_characters[peer_id] = StringName(character_id)
+	ready_peers[peer_id] = false
+	character_roster_changed.emit()
+	peer_roster_changed.emit()
 
 
 @rpc("authority", "call_remote", "reliable", 0)
@@ -184,6 +240,7 @@ func _on_peer_connected(peer_id: int) -> void:
 func _on_peer_disconnected(peer_id: int) -> void:
 	accepted_peers.erase(peer_id)
 	ready_peers.erase(peer_id)
+	selected_characters.erase(peer_id)
 	peer_roster_changed.emit()
 	if role == SessionRole.CLIENT:
 		_fail("ホストから切断されました")

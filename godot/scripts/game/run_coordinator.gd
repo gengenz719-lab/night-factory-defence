@@ -23,7 +23,6 @@ const NetworkTestDriverScript := preload("res://tests/network_test_driver.gd")
 var random_streams := RunRandomStreams.new()
 var player: CrewPlayer
 var hud: GameHUD
-var weapon_definition: WeaponDefinition
 var active_relic_choices: Array[RelicDefinition] = []
 var players_by_peer: Dictionary = {}
 var _initialized: bool = false
@@ -40,18 +39,20 @@ func setup_network_run(run_seed: int) -> void:
 	random_streams.setup(run_seed)
 	var waves: Array[WaveDefinition] = _load_waves()
 	var relic_pool: Array[RelicDefinition] = _load_relics()
-	var character := GameCatalog.get_definition(&"character_survivor") as CharacterDefinition
-	weapon_definition = GameCatalog.get_definition(character.starting_weapon_id) as WeaponDefinition
-
 	parallax_world.add_child(BackgroundScript.new())
 	vehicle_state.setup(GameCatalog.get_definition(&"vehicle_survival") as VehicleDefinition)
 	var peer_ids: Array[int] = NetworkSession.connected_peer_ids()
 	for roster_index: int in peer_ids.size():
 		var peer_id: int = peer_ids[roster_index]
+		var character_id: StringName = NetworkSession.selected_character(peer_id)
+		if character_id.is_empty():
+			character_id = &"character_gunner"
+		var character := GameCatalog.get_definition(character_id) as CharacterDefinition
+		var starting_weapon := GameCatalog.get_definition(character.starting_weapon_id) as WeaponDefinition
 		var crew := PlayerScript.new() as CrewPlayer
 		crew.name = "Player%d" % peer_id
 		$Players.add_child(crew)
-		crew.setup(vehicle_state, character, weapon_definition)
+		crew.setup(vehicle_state, character, starting_weapon)
 		crew.peer_id = peer_id
 		crew.network_controlled = true
 		crew.position.x += float(roster_index) * 62.0
@@ -155,19 +156,19 @@ func spawn_authoritative_projectile(shooter: CrewPlayer, direction: Vector2) -> 
 	projectiles.add_child(projectile)
 	projectile.setup(
 		shooter.position + direction * 38.0, direction,
-		weapon_definition.damage_per_shot * shooter.damage_multiplier,
-		weapon_definition, true
+		shooter.weapon_definition.damage_per_shot * shooter.damage_multiplier,
+		shooter.weapon_definition, true
 	)
 
 
 func spawn_cosmetic_projectile(shooter: CrewPlayer, direction: Vector2) -> void:
-	spawn_cosmetic_projectile_at(shooter.position + direction * 38.0, direction)
+	spawn_cosmetic_projectile_at(shooter.position + direction * 38.0, direction, shooter.weapon_definition.id)
 
 
-func spawn_cosmetic_projectile_at(origin: Vector2, direction: Vector2) -> void:
+func spawn_cosmetic_projectile_at(origin: Vector2, direction: Vector2, weapon_id: StringName) -> void:
 	var projectile := ProjectileScript.new() as PlayerProjectile
 	projectiles.add_child(projectile)
-	projectile.setup(origin, direction, 0.0, weapon_definition, false)
+	projectile.setup(origin, direction, 0.0, GameCatalog.get_definition(weapon_id) as WeaponDefinition, false)
 
 
 func _on_vehicle_destroyed() -> void:

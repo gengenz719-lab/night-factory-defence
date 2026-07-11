@@ -24,6 +24,10 @@ var dodge_authority_pass: bool = false
 var down_duration_pass: bool = false
 var revive_authority_pass: bool = false
 var return_authority_pass: bool = false
+var character_selection_pass: bool = false
+var ability_authority_pass: bool = false
+var saw_ability_state: bool = false
+var _supplies_before_drone: float = 0.0
 
 
 func setup(run: RunCoordinator) -> void:
@@ -38,6 +42,10 @@ func setup(run: RunCoordinator) -> void:
 	state_replicator.vehicle_snapshot_received.connect(_on_vehicle_snapshot)
 	state_replicator.run_state_received.connect(_on_run_state)
 	replicator.player_survival_snapshot_received.connect(_on_player_survival_snapshot)
+	replicator.player_ability_snapshot_received.connect(_on_player_ability_snapshot)
+	var host_player := coordinator.players_by_peer.get(NetworkSession.HOST_PEER_ID) as CrewPlayer
+	var client_player: CrewPlayer = _find_client_player()
+	character_selection_pass = host_player != null and client_player != null and host_player.definition.id == &"character_gunner" and client_player.definition.id == &"character_engineer"
 	for peer_key: Variant in coordinator.players_by_peer:
 		if int(peer_key) != NetworkSession.local_peer_id():
 			_initial_remote_position = (coordinator.players_by_peer[peer_key] as CrewPlayer).position
@@ -69,11 +77,20 @@ func _process(delta: float) -> void:
 				if enemy != null:
 					enemy.position = Vector2(430.0, 675.0)
 				coordinator.vehicle_state.take_attack(&"front", 60.0)
+				_supplies_before_drone = coordinator.vehicle_state.supplies
 				phase = 1
 		1:
 			if elapsed >= 0.65:
 				var client_player: CrewPlayer = _find_client_player()
 				var hp_before: float = client_player.survival.hp
+				var host_player := coordinator.players_by_peer[NetworkSession.HOST_PEER_ID] as CrewPlayer
+				ability_authority_pass = (
+					replicator.remote_ability_intents_received > 0 and replicator.abilities_confirmed >= 2 and
+					host_player.ability_active_time > 0.0 and client_player.ability_active_time > 0.0 and
+					host_player.effective_fire_interval() < 1.0 / host_player.weapon_definition.shots_per_second and
+					float(coordinator.vehicle_state.section_hp[&"front"]) > float(coordinator.vehicle_state.max_section_hp[&"front"]) - 60.0 and
+					is_equal_approx(coordinator.vehicle_state.supplies, _supplies_before_drone)
+				)
 				client_player.take_damage(10.0)
 				dodge_authority_pass = (
 					replicator.remote_dodge_intents_received > 0 and
@@ -172,6 +189,10 @@ func _on_player_survival_snapshot(_peer_id: int, downed: bool, departed: bool, i
 		saw_returned_state = true
 
 
+func _on_player_ability_snapshot(_peer_id: int, active_time: float, cooldown: float) -> void:
+	saw_ability_state = saw_ability_state or (active_time > 0.0 and cooldown > 0.0)
+
+
 func _request_network_test_report() -> void:
 	var host_player := coordinator.players_by_peer.get(NetworkSession.HOST_PEER_ID) as CrewPlayer
 	var client_player: CrewPlayer = _find_client_player()
@@ -205,6 +226,7 @@ func _receive_final_test_state(host_hash: String, state: int, wave_index: int, h
 		saw_remote_movement, saw_enemy_snapshot, saw_vehicle_damage, saw_vehicle_repair,
 		saw_wave_two, saw_victory, replicator.confirmed_shots > 0, host_hash == client_hash,
 		saw_dodge_state, saw_downed_state, saw_revived_state, saw_departed_state, saw_returned_state,
+		saw_ability_state,
 		replicator.max_correction, average_correction
 	)
 
@@ -214,6 +236,7 @@ func _submit_network_test_report(
 	remote_moved: bool, enemy_synced: bool, vehicle_damaged: bool, vehicle_repaired: bool,
 	wave_two: bool, victory: bool, shots_synced: bool, hash_matched: bool,
 	dodge_synced: bool, downed_synced: bool, revived_synced: bool, departed_synced: bool, returned_synced: bool,
+	ability_synced: bool,
 	client_max_correction: float, client_average_correction: float
 ) -> void:
 	if not NetworkSession.is_host_authority():
@@ -222,12 +245,13 @@ func _submit_network_test_report(
 		remote_moved and enemy_synced and vehicle_damaged and vehicle_repaired and
 		wave_two and victory and shots_synced and hash_matched and
 		dodge_synced and downed_synced and revived_synced and departed_synced and returned_synced and
+		ability_synced and character_selection_pass and ability_authority_pass and
 		dodge_authority_pass and down_duration_pass and revive_authority_pass and return_authority_pass and
 		replicator.remote_inputs_received > 0 and replicator.confirmed_shots > 0
 	)
-	print("NETWORK_TEST_%s inputs=%d shots=%d kills=%d dodge=%s revive=%s return=%s hash=%s max_correction=%.3f avg_correction=%.3f" % [
+	print("NETWORK_TEST_%s inputs=%d shots=%d kills=%d characters=%s abilities=%s dodge=%s revive=%s return=%s hash=%s max_correction=%.3f avg_correction=%.3f" % [
 		"PASS" if passed else "FAIL", replicator.remote_inputs_received, replicator.confirmed_shots,
-		coordinator.reward_system.kills, dodge_authority_pass, revive_authority_pass,
+		coordinator.reward_system.kills, character_selection_pass, ability_authority_pass, dodge_authority_pass, revive_authority_pass,
 		return_authority_pass, hash_matched, client_max_correction, client_average_correction,
 	])
 	_finish_network_test.rpc(passed)

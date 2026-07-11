@@ -23,6 +23,7 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	_test_catalog(failures)
 	_test_deterministic_rewards(failures)
 	_test_foundation_configuration(coordinator, failures)
+	_test_characters(coordinator, failures)
 	_test_player_survival(coordinator.player, failures)
 
 	coordinator.stage_director.begin_combat()
@@ -125,6 +126,35 @@ func _test_catalog(failures: Array[String]) -> void:
 	var invalid_definitions: Array[GameDefinition] = [empty, duplicate_a, duplicate_b, missing]
 	if GameCatalog.validate_definitions(invalid_definitions).size() != 3:
 		failures.append("catalog validation coverage mismatch")
+
+
+func _test_characters(coordinator: RunCoordinator, failures: Array[String]) -> void:
+	var gunner := GameCatalog.get_definition(&"character_gunner") as CharacterDefinition
+	var engineer := GameCatalog.get_definition(&"character_engineer") as CharacterDefinition
+	if gunner == null or engineer == null or gunner.starting_weapon_id == engineer.starting_weapon_id:
+		failures.append("two character definitions or starting weapons missing")
+		return
+	if coordinator.player.definition.id != &"character_gunner" or not is_equal_approx(coordinator.player.damage_multiplier, 1.1):
+		failures.append("gunner selection or passive mismatch")
+	var normal_interval: float = 1.0 / coordinator.player.weapon_definition.shots_per_second
+	if not coordinator.player.authority_request_ability() or coordinator.player.effective_fire_interval() >= normal_interval:
+		failures.append("combat focus did not increase attack speed")
+	if coordinator.player.effective_reload_seconds() >= coordinator.player.weapon_definition.reload_seconds:
+		failures.append("combat focus did not increase reload speed")
+	var engineer_player := CrewPlayer.new()
+	coordinator.add_child(engineer_player)
+	engineer_player.setup(coordinator.vehicle_state, engineer, GameCatalog.get_definition(engineer.starting_weapon_id) as WeaponDefinition)
+	coordinator.vehicle_state.take_attack(&"front", 24.0)
+	var damaged_hp: float = float(coordinator.vehicle_state.section_hp[&"front"])
+	var supplies_before: float = coordinator.vehicle_state.supplies
+	if not engineer_player.authority_request_ability():
+		failures.append("repair drone activation rejected")
+	engineer_player.authority_tick(1.0)
+	if float(coordinator.vehicle_state.section_hp[&"front"]) < damaged_hp + 11.9:
+		failures.append("repair drone did not repair 12 HP/s")
+	if not is_equal_approx(coordinator.vehicle_state.supplies, supplies_before):
+		failures.append("repair drone consumed supplies")
+	engineer_player.queue_free()
 
 
 func _test_foundation_configuration(coordinator: RunCoordinator, failures: Array[String]) -> void:
