@@ -76,6 +76,19 @@ var _client_invasion_ack_sent: bool = false
 var _test_climber: EnemyUnit
 var _workbench_instance_id: int = 0
 var _supplies_before_breach_seal: float = -1.0
+var relic_vote_authority_pass: bool = false
+var route_vote_authority_pass: bool = false
+var route_effect_authority_pass: bool = false
+var saw_same_relic_choices: bool = false
+var saw_relic_result: bool = false
+var saw_same_route_choices: bool = false
+var saw_route_result: bool = false
+var saw_route_reward: bool = false
+var _client_relic_vote_sent: bool = false
+var _client_route_vote_sent: bool = false
+var _host_relic_vote_sent: bool = false
+var _host_route_vote_sent: bool = false
+var _expected_relic_id: StringName = &""
 
 
 func setup(run: RunCoordinator) -> void:
@@ -91,6 +104,11 @@ func setup(run: RunCoordinator) -> void:
 	state_replicator.run_state_received.connect(_on_run_state)
 	state_replicator.breach_snapshot_received.connect(_on_breach_snapshot)
 	state_replicator.enemy_invasion_snapshot_received.connect(_on_enemy_invasion_snapshot)
+	state_replicator.reward_choices_received.connect(_on_reward_choices_received)
+	state_replicator.relic_selected_received.connect(func(_relic_id: StringName) -> void: saw_relic_result = true)
+	state_replicator.route_choices_received.connect(_on_route_choices_received)
+	state_replicator.route_selected_received.connect(func(_route_id: StringName) -> void: saw_route_result = true)
+	state_replicator.route_reward_received.connect(func() -> void: saw_route_reward = true)
 	coordinator.module_net_replicator.module_state_received.connect(_on_module_state_received)
 	replicator.player_survival_snapshot_received.connect(_on_player_survival_snapshot)
 	replicator.player_ability_snapshot_received.connect(_on_player_ability_snapshot)
@@ -107,6 +125,7 @@ func _process(delta: float) -> void:
 	if not active:
 		return
 	if not NetworkSession.is_host_authority():
+		_drive_client_votes()
 		if not _client_place_sent and coordinator.stage_director.state == StageDirector.RunState.PREPARE and coordinator.module_system.modules.size() == 4:
 			_client_place_sent = true
 			coordinator.module_net_replicator.request_place(&"module_firing_port", Vector2i(1, 1))
@@ -221,8 +240,20 @@ func _process(delta: float) -> void:
 				coordinator.stage_director.finish_wave()
 				_advance_phase(TestPhase.PREPARE_WAVE_TWO)
 		TestPhase.PREPARE_WAVE_TWO:
-			if coordinator.stage_director.state == StageDirector.RunState.REWARD and not coordinator.active_relic_choices.is_empty():
-				coordinator.select_relic(0)
+			if coordinator.stage_director.state == StageDirector.RunState.REWARD:
+				if coordinator.vote_controller.active_kind == VoteController.VoteKind.RELIC and coordinator.active_relic_choices.size() == 3 and not _host_relic_vote_sent:
+					_host_relic_vote_sent = true
+					_expected_relic_id = coordinator.active_relic_choices[1].id
+					coordinator.select_relic(1)
+				if coordinator.vote_controller.active_kind == VoteController.VoteKind.ROUTE and coordinator.active_route_choices.size() == 2:
+					relic_vote_authority_pass = coordinator.reward_system.acquired.size() == 1 and coordinator.reward_system.acquired[0].id == _expected_relic_id
+					if not _host_route_vote_sent:
+						_host_route_vote_sent = true
+						coordinator.select_route(0)
+					if coordinator.vote_controller.votes_by_peer.size() >= 2:
+						coordinator.vote_controller.remaining_time = 0.0
+			if coordinator.selected_route != null:
+				route_vote_authority_pass = coordinator.vote_controller.tie_breaks > 0 and coordinator.selected_route in coordinator.active_route_choices
 			if _supplies_before_breach_seal < 0.0:
 				_supplies_before_breach_seal = coordinator.vehicle_state.supplies
 			var repairer := coordinator.players_by_peer[NetworkSession.HOST_PEER_ID] as CrewPlayer
@@ -231,8 +262,10 @@ func _process(delta: float) -> void:
 			if not coordinator.vehicle_state.is_breached(&"roof"):
 				breach_seal_authority_pass = coordinator.vehicle_state.supplies <= _supplies_before_breach_seal - coordinator.vehicle_state.definition.breach_seal_supply_cost
 			repair_full_pass = is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), float(coordinator.vehicle_state.max_section_hp[&"front"]))
-			if repair_full_pass and breach_seal_authority_pass and coordinator.stage_director.state == StageDirector.RunState.PREPARE:
+			if repair_full_pass and breach_seal_authority_pass and relic_vote_authority_pass and route_vote_authority_pass and coordinator.stage_director.state == StageDirector.RunState.PREPARE:
 				coordinator.stage_director.begin_combat()
+				var expected_budget: int = roundi(float(coordinator.stage_director.current_wave().threat_budget) * coordinator.selected_route.enemy_budget_multiplier)
+				route_effect_authority_pass = coordinator.enemy_director.remaining_budget == expected_budget
 				_advance_phase(TestPhase.FINISH_WAVE_TWO)
 		TestPhase.FINISH_WAVE_TWO:
 			if _client_wave_two_acknowledged and coordinator.stage_director.state == StageDirector.RunState.COMBAT:
@@ -304,6 +337,15 @@ func _try_acknowledge_client_observations() -> void:
 	_ack_client_observations.rpc_id(NetworkSession.HOST_PEER_ID)
 
 
+func _drive_client_votes() -> void:
+	if coordinator.vote_controller.active_kind == VoteController.VoteKind.RELIC and coordinator.active_relic_choices.size() == 3 and not _client_relic_vote_sent:
+		_client_relic_vote_sent = true
+		coordinator.select_relic(1)
+	elif coordinator.vote_controller.active_kind == VoteController.VoteKind.ROUTE and coordinator.active_route_choices.size() == 2 and not _client_route_vote_sent:
+		_client_route_vote_sent = true
+		coordinator.select_route(1)
+
+
 func _try_acknowledge_shot_observation() -> void:
 	if _client_shot_ack_sent or replicator.confirmed_shots <= 0:
 		return
@@ -325,7 +367,8 @@ func _client_observation_conditions_met() -> bool:
 		saw_downed_state and saw_revived_state and saw_departed_state and saw_returned_state and
 		saw_ability_state and saw_module_layout and saw_power_shutdown and saw_turret_overheat and
 		saw_turret_recovery and saw_breach_open and saw_breach_closed and saw_invasion_warning and
-		saw_enemy_inside and saw_invader_module_damage
+		saw_enemy_inside and saw_invader_module_damage and saw_same_relic_choices and
+		saw_relic_result and saw_same_route_choices and saw_route_result and saw_route_reward
 	)
 
 
@@ -376,6 +419,23 @@ func _on_breach_snapshot(_front: bool, _rear: bool, roof: bool, _lower: bool) ->
 func _on_enemy_invasion_snapshot(_enemy_net_id: int, inside_vehicle: bool, invasion_state: int) -> void:
 	saw_invasion_warning = saw_invasion_warning or invasion_state == EnemyUnit.InvasionState.ENTERING
 	saw_enemy_inside = saw_enemy_inside or inside_vehicle
+
+
+func _on_reward_choices_received(first_id: StringName, second_id: StringName, third_id: StringName) -> void:
+	saw_same_relic_choices = (
+		coordinator.active_relic_choices.size() == 3 and
+		coordinator.active_relic_choices[0].id == first_id and
+		coordinator.active_relic_choices[1].id == second_id and
+		coordinator.active_relic_choices[2].id == third_id
+	)
+
+
+func _on_route_choices_received(first_id: StringName, second_id: StringName) -> void:
+	saw_same_route_choices = (
+		coordinator.active_route_choices.size() == 2 and
+		coordinator.active_route_choices[0].id == first_id and
+		coordinator.active_route_choices[1].id == second_id
+	)
 
 
 func _on_module_state_received(instance_id: int, hp: float) -> void:
@@ -461,6 +521,7 @@ func _receive_final_test_state(host_hash: String, state: int, wave_index: int, h
 		saw_ability_state,
 		saw_module_layout, saw_power_shutdown, saw_turret_overheat, saw_turret_recovery,
 		saw_breach_open, saw_breach_closed, saw_invasion_warning, saw_enemy_inside, saw_invader_module_damage,
+		saw_same_relic_choices, saw_relic_result, saw_same_route_choices, saw_route_result, saw_route_reward,
 		replicator.max_correction, average_correction
 	)
 
@@ -473,6 +534,7 @@ func _submit_network_test_report(
 	ability_synced: bool,
 	module_layout_synced: bool, power_synced: bool, overheat_synced: bool, recovery_synced: bool,
 	breach_open_synced: bool, breach_closed_synced: bool, invasion_warning_synced: bool, enemy_inside_synced: bool, invader_module_damage_synced: bool,
+	relic_choices_synced: bool, relic_result_synced: bool, route_choices_synced: bool, route_result_synced: bool, route_reward_synced: bool,
 	client_max_correction: float, client_average_correction: float
 ) -> void:
 	if not NetworkSession.is_host_authority():
@@ -484,14 +546,16 @@ func _submit_network_test_report(
 		ability_synced and character_selection_pass and ability_authority_pass and
 		module_layout_synced and power_synced and overheat_synced and recovery_synced and
 		breach_open_synced and breach_closed_synced and invasion_warning_synced and enemy_inside_synced and invader_module_damage_synced and
+		relic_choices_synced and relic_result_synced and route_choices_synced and route_result_synced and route_reward_synced and
 		module_layout_authority_pass and power_priority_pass and repair_cap_pass and repair_full_pass and turret_authority_pass and
 		breach_authority_pass and invasion_authority_pass and module_attack_authority_pass and breach_seal_authority_pass and
+		relic_vote_authority_pass and route_vote_authority_pass and route_effect_authority_pass and
 		dodge_authority_pass and down_duration_pass and revive_authority_pass and return_authority_pass and
 		replicator.remote_inputs_received > 0 and replicator.confirmed_shots > 0
 	)
-	print("NETWORK_TEST_%s inputs=%d shots=%d kills=%d breach=%s invasion=%s module_attack=%s seal=%s modules=%s power=%s repair=%s turret=%s characters=%s abilities=%s dodge=%s revive=%s return=%s hash=%s max_correction=%.3f avg_correction=%.3f" % [
+	print("NETWORK_TEST_%s inputs=%d shots=%d kills=%d relic_vote=%s route_vote=%s route_effect=%s breach=%s invasion=%s module_attack=%s seal=%s modules=%s power=%s repair=%s turret=%s characters=%s abilities=%s dodge=%s revive=%s return=%s hash=%s max_correction=%.3f avg_correction=%.3f" % [
 		"PASS" if passed else "FAIL", replicator.remote_inputs_received, replicator.confirmed_shots,
-		coordinator.reward_system.kills, breach_authority_pass, invasion_authority_pass, module_attack_authority_pass, breach_seal_authority_pass, module_layout_authority_pass, power_priority_pass, repair_cap_pass and repair_full_pass, turret_authority_pass, character_selection_pass, ability_authority_pass, dodge_authority_pass, revive_authority_pass,
+		coordinator.reward_system.kills, relic_vote_authority_pass, route_vote_authority_pass, route_effect_authority_pass, breach_authority_pass, invasion_authority_pass, module_attack_authority_pass, breach_seal_authority_pass, module_layout_authority_pass, power_priority_pass, repair_cap_pass and repair_full_pass, turret_authority_pass, character_selection_pass, ability_authority_pass, dodge_authority_pass, revive_authority_pass,
 		return_authority_pass, hash_matched, client_max_correction, client_average_correction,
 	])
 	_finish_network_test.rpc(passed)
@@ -532,4 +596,8 @@ func _module_hash() -> String:
 	for instance_id: int in ids:
 		var module: VehicleModuleState = coordinator.module_system.modules[instance_id]
 		lines.append("%d:%s:%d:%d:%d:%d" % [instance_id, module.definition.id, module.grid_position.x, module.grid_position.y, module.priority, 1 if module.powered else 0])
-	return ",".join(lines) + ":scrap=%d" % coordinator.module_system.scrap
+	var relic_ids := PackedStringArray()
+	for relic: RelicDefinition in coordinator.reward_system.acquired:
+		relic_ids.append(String(relic.id))
+	var route_id: String = String(coordinator.selected_route.id) if coordinator.selected_route != null else ""
+	return ",".join(lines) + ":scrap=%d:relics=%s:route=%s" % [coordinator.module_system.scrap, ",".join(relic_ids), route_id]

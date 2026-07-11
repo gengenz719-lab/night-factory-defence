@@ -6,6 +6,11 @@ signal enemy_invasion_snapshot_received(enemy_net_id: int, inside_vehicle: bool,
 signal vehicle_snapshot_received(front_hp: float)
 signal breach_snapshot_received(front: bool, rear: bool, roof: bool, lower: bool)
 signal run_state_received(state: int, wave_index: int)
+signal route_choices_received(first_id: StringName, second_id: StringName)
+signal route_selected_received(route_id: StringName)
+signal reward_choices_received(first_id: StringName, second_id: StringName, third_id: StringName)
+signal relic_selected_received(relic_id: StringName)
+signal route_reward_received
 
 const ENEMY_SNAPSHOT_INTERVAL: float = 1.0 / 12.0
 const VEHICLE_SNAPSHOT_INTERVAL: float = 0.5
@@ -120,7 +125,9 @@ func broadcast_reward_choices(choices: Array[RelicDefinition]) -> void:
 
 @rpc("authority", "call_remote", "reliable", 0)
 func _receive_reward_choices(first_id: String, second_id: String, third_id: String) -> void:
-	if not NetworkSession.is_host_authority(): coordinator.receive_reward_choices(first_id, second_id, third_id)
+	if not NetworkSession.is_host_authority():
+		coordinator.receive_reward_choices(first_id, second_id, third_id)
+		reward_choices_received.emit(StringName(first_id), StringName(second_id), StringName(third_id))
 
 
 func broadcast_relic_selected(relic_id: StringName) -> void:
@@ -129,7 +136,47 @@ func broadcast_relic_selected(relic_id: StringName) -> void:
 
 @rpc("authority", "call_remote", "reliable", 0)
 func _receive_relic_selected(relic_id: String) -> void:
-	if not NetworkSession.is_host_authority(): coordinator.receive_relic_selected(StringName(relic_id))
+	if not NetworkSession.is_host_authority():
+		coordinator.receive_relic_selected(StringName(relic_id))
+		relic_selected_received.emit(StringName(relic_id))
+
+
+func broadcast_route_choices(choices: Array[RouteNodeDefinition]) -> void:
+	if choices.size() == 2:
+		_receive_route_choices.rpc(String(choices[0].id), String(choices[1].id))
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _receive_route_choices(first_id: String, second_id: String) -> void:
+	if NetworkSession.is_host_authority():
+		return
+	coordinator.receive_route_choices(first_id, second_id)
+	route_choices_received.emit(StringName(first_id), StringName(second_id))
+
+
+func broadcast_route_selected(route_id: StringName) -> void:
+	_receive_route_selected.rpc(String(route_id))
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _receive_route_selected(route_id: String) -> void:
+	if NetworkSession.is_host_authority():
+		return
+	coordinator.receive_route_selected(StringName(route_id))
+	route_selected_received.emit(StringName(route_id))
+
+
+func broadcast_route_reward() -> void:
+	_receive_route_reward.rpc(coordinator.module_system.scrap, coordinator.vehicle_state.supplies)
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _receive_route_reward(scrap: int, supplies: float) -> void:
+	if NetworkSession.is_host_authority():
+		return
+	coordinator.module_system.scrap = scrap
+	coordinator.vehicle_state.supplies = supplies
+	route_reward_received.emit()
 
 
 func broadcast_result(victory: bool) -> void:

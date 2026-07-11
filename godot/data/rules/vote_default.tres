@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="VoteRulesDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/vote_rules_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"vote_default"
+display_name_key = &"rules.vote.default.name"
+description_key = &"rules.vote.default.description"
+tags = Array[StringName]([&"vote_rules"])
+relic_choice_count = 3
+route_choice_count = 2
+vote_duration_seconds = 20.0

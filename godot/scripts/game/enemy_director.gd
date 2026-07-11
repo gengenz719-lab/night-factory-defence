@@ -15,6 +15,7 @@ var players_by_peer: Dictionary = {}
 var module_system: VehicleModuleSystem
 var _random: RandomNumberGenerator
 var current_wave: WaveDefinition
+var current_route: RouteNodeDefinition
 var remaining_budget: int = 0
 var spawn_time: float = 0.0
 var wave_elapsed: float = 0.0
@@ -45,7 +46,8 @@ func _process(delta: float) -> void:
 
 func begin_wave(wave: WaveDefinition) -> void:
 	current_wave = wave
-	remaining_budget = wave.threat_budget
+	var budget_multiplier: float = current_route.enemy_budget_multiplier if current_route != null else 1.0
+	remaining_budget = roundi(float(wave.threat_budget) * budget_multiplier)
 	spawn_time = wave.first_spawn_delay_seconds
 	wave_elapsed = 0.0
 	active = true
@@ -133,8 +135,12 @@ func _select_affordable_enemy() -> EnemyDefinition:
 		var definition := GameCatalog.get_definition(current_wave.enemy_ids[index]) as EnemyDefinition
 		if definition.threat_cost <= remaining_budget:
 			candidates.append(definition)
-			weights.append(current_wave.enemy_weights[index])
-			total_weight += current_wave.enemy_weights[index]
+			var route_multiplier: float = 1.0
+			if current_route != null and definition.id == current_route.primary_enemy_id:
+				route_multiplier = current_route.preferred_enemy_weight_multiplier
+			var adjusted_weight: float = current_wave.enemy_weights[index] * route_multiplier
+			weights.append(adjusted_weight)
+			total_weight += adjusted_weight
 	if candidates.is_empty():
 		return null
 	var roll: float = _random.randf() * total_weight

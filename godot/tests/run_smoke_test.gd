@@ -5,7 +5,7 @@ const CatalogFixtureScript := preload("res://tests/catalog_fixture_definition.gd
 const REQUIRED_RUN_NODES: Array[String] = [
 	"StageDirector", "EnemyDirector", "VehicleState", "RewardSystem",
 	"NetStateReplicator", "PlayerNetReplicator", "ReviveController",
-	"VehicleModuleSystem", "ModuleNetReplicator",
+	"VehicleModuleSystem", "ModuleNetReplicator", "VoteController",
 ]
 const REQUIRED_INPUT_ACTIONS: Array[StringName] = [
 	&"move_left", &"move_right", &"jump", &"drop_down", &"aim",
@@ -23,6 +23,7 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	await coordinator.get_tree().process_frame
 	_test_catalog(failures)
 	_test_deterministic_rewards(failures)
+	_test_deterministic_routes(failures)
 	_test_foundation_configuration(coordinator, failures)
 	_test_modules(coordinator, failures)
 	_test_characters(coordinator, failures)
@@ -78,8 +79,12 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	var plating_index: int = _find_relic(coordinator.active_relic_choices, &"relic_plating")
 	var old_front_max: float = float(coordinator.vehicle_state.max_section_hp[&"front"])
 	coordinator.select_relic(plating_index)
-	if coordinator.stage_director.wave_number() != 2 or float(coordinator.vehicle_state.max_section_hp[&"front"]) <= old_front_max:
+	if float(coordinator.vehicle_state.max_section_hp[&"front"]) <= old_front_max or coordinator.active_route_choices.size() != 2:
 		failures.append("relic application mismatch")
+	var salvage_index: int = _find_route(coordinator.active_route_choices, &"route_salvage")
+	coordinator.select_route(salvage_index)
+	if coordinator.stage_director.wave_number() != 2 or coordinator.selected_route == null or coordinator.selected_route.id != &"route_salvage":
+		failures.append("route selection mismatch")
 	var supplies_before_seal: float = coordinator.vehicle_state.supplies
 	coordinator.vehicle_state.repair_at(coordinator.player.position, 0.1, 1.0)
 	if coordinator.vehicle_state.is_breached(&"roof") or not is_equal_approx(coordinator.vehicle_state.supplies, supplies_before_seal - coordinator.vehicle_state.definition.breach_seal_supply_cost):
@@ -90,9 +95,18 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 		failures.append("prepare repair did not reach 100 percent")
 
 	coordinator.stage_director.begin_combat()
+	var expected_route_budget: int = roundi(float(coordinator.stage_director.current_wave().threat_budget) * coordinator.selected_route.enemy_budget_multiplier)
+	if coordinator.enemy_director.remaining_budget != expected_route_budget:
+		failures.append("route enemy budget was not applied")
+	var scrap_before_route_reward: int = coordinator.module_system.scrap
+	var supplies_before_route_reward: float = coordinator.vehicle_state.supplies
 	coordinator.stage_director.finish_wave()
 	if coordinator.stage_director.state != StageDirector.RunState.VICTORY:
 		failures.append("wave 2 did not enter victory")
+	if coordinator.module_system.scrap != scrap_before_route_reward + coordinator.selected_route.scrap_reward:
+		failures.append("route scrap reward mismatch")
+	if not is_equal_approx(coordinator.vehicle_state.supplies, supplies_before_route_reward + coordinator.selected_route.supply_reward):
+		failures.append("route supply reward mismatch")
 	return failures
 
 
@@ -279,8 +293,35 @@ func _test_deterministic_rewards(failures: Array[String]) -> void:
 	rewards_b.free()
 
 
+func _test_deterministic_routes(failures: Array[String]) -> void:
+	var pool: Array[RouteNodeDefinition] = []
+	for definition: GameDefinition in GameCatalog.get_definitions_with_tag(&"route"):
+		pool.append(definition as RouteNodeDefinition)
+	var streams_a := RunRandomStreams.new()
+	var streams_b := RunRandomStreams.new()
+	streams_a.setup(654321)
+	streams_b.setup(654321)
+	var generator_a := RouteGenerator.new()
+	var generator_b := RouteGenerator.new()
+	generator_a.setup(streams_a.route, pool)
+	generator_b.setup(streams_b.route, pool)
+	var choices_a: Array[RouteNodeDefinition] = generator_a.generate_choices(2)
+	var choices_b: Array[RouteNodeDefinition] = generator_b.generate_choices(2)
+	if choices_a.size() != 2 or choices_a[0].id == choices_a[1].id:
+		failures.append("route generator did not create two unique choices")
+	elif choices_a[0].id != choices_b[0].id or choices_a[1].id != choices_b[1].id:
+		failures.append("route seed was not deterministic")
+
+
 func _find_relic(choices: Array[RelicDefinition], relic_id: StringName) -> int:
 	for index: int in choices.size():
 		if choices[index].id == relic_id:
+			return index
+	return -1
+
+
+func _find_route(choices: Array[RouteNodeDefinition], route_id: StringName) -> int:
+	for index: int in choices.size():
+		if choices[index].id == route_id:
 			return index
 	return -1
