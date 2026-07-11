@@ -28,6 +28,17 @@ var character_selection_pass: bool = false
 var ability_authority_pass: bool = false
 var saw_ability_state: bool = false
 var _supplies_before_drone: float = 0.0
+var module_layout_authority_pass: bool = false
+var power_priority_pass: bool = false
+var repair_cap_pass: bool = false
+var repair_full_pass: bool = false
+var turret_authority_pass: bool = false
+var saw_module_layout: bool = false
+var saw_power_shutdown: bool = false
+var saw_turret_overheat: bool = false
+var saw_turret_recovery: bool = false
+var _test_turret_id: int = 0
+var _client_place_sent: bool = false
 
 
 func setup(run: RunCoordinator) -> void:
@@ -52,7 +63,14 @@ func setup(run: RunCoordinator) -> void:
 
 
 func _process(delta: float) -> void:
-	if not active or not NetworkSession.is_host_authority():
+	if not active:
+		return
+	if not NetworkSession.is_host_authority():
+		elapsed += delta
+		if not _client_place_sent and elapsed >= 0.1:
+			_client_place_sent = true
+			coordinator.module_net_replicator.request_place(&"module_firing_port", Vector2i(1, 1))
+		_observe_client_modules()
 		return
 	elapsed += delta
 	if elapsed >= 12.0 and phase < 9:
@@ -71,12 +89,28 @@ func _process(delta: float) -> void:
 		return
 	match phase:
 		0:
-			if elapsed >= 0.25:
+			if elapsed >= 0.25 and coordinator.module_net_replicator.remote_place_intents_received > 0:
+				coordinator.module_system.scrap = 300
+				coordinator.module_net_replicator.request_place(&"module_turret", Vector2i(2, 0))
+				_test_turret_id = coordinator.module_system.next_instance_id - 1
+				coordinator.module_net_replicator.request_place(&"module_turret", Vector2i(4, 0))
+				var second_turret_id: int = coordinator.module_system.next_instance_id - 1
+				var workbench: VehicleModuleState = coordinator.module_system.active_workbench()
+				coordinator.module_net_replicator.request_priority(workbench.instance_id, 3)
+				coordinator.module_net_replicator.request_priority(_test_turret_id, 2)
+				coordinator.module_net_replicator.request_priority(second_turret_id, 1)
+				var second_turret: VehicleModuleState = coordinator.module_system.modules[second_turret_id]
+				module_layout_authority_pass = coordinator.module_system.modules.size() == 7 and coordinator.module_net_replicator.remote_place_intents_received > 0
+				power_priority_pass = workbench.powered and (coordinator.module_system.modules[_test_turret_id] as VehicleModuleState).powered and not second_turret.powered
+				var test_turret: VehicleModuleState = coordinator.module_system.modules[_test_turret_id]
+				test_turret.heat = test_turret.definition.heat_limit
+				test_turret.overheated = true
+				test_turret.overheat_time = test_turret.definition.overheat_stop_seconds
 				coordinator.stage_director.begin_combat()
 				var enemy: EnemyUnit = coordinator.enemy_director.spawn_enemy()
 				if enemy != null:
-					enemy.position = Vector2(430.0, 675.0)
-				coordinator.vehicle_state.take_attack(&"front", 60.0)
+					enemy.position = Vector2(700.0, 600.0)
+				coordinator.vehicle_state.take_attack(&"front", 170.0)
 				_supplies_before_drone = coordinator.vehicle_state.supplies
 				phase = 1
 		1:
@@ -88,7 +122,7 @@ func _process(delta: float) -> void:
 					replicator.remote_ability_intents_received > 0 and replicator.abilities_confirmed >= 2 and
 					host_player.ability_active_time > 0.0 and client_player.ability_active_time > 0.0 and
 					host_player.effective_fire_interval() < 1.0 / host_player.weapon_definition.shots_per_second and
-					float(coordinator.vehicle_state.section_hp[&"front"]) > float(coordinator.vehicle_state.max_section_hp[&"front"]) - 60.0 and
+					float(coordinator.vehicle_state.section_hp[&"front"]) > 130.0 and
 					is_equal_approx(coordinator.vehicle_state.supplies, _supplies_before_drone)
 				)
 				client_player.take_damage(10.0)
@@ -142,11 +176,27 @@ func _process(delta: float) -> void:
 				phase = 6
 		6:
 			if elapsed >= 6.0:
+				var turret_target: EnemyUnit = coordinator.enemy_director.spawn_test_enemy(GameCatalog.get_definition(&"enemy_walker") as EnemyDefinition)
+				turret_target.position = Vector2(700.0, 600.0)
+				coordinator.module_system.authority_tick(0.6)
+				var repairer := coordinator.players_by_peer[NetworkSession.HOST_PEER_ID] as CrewPlayer
+				repairer.position = SurvivalVehicle.REPAIR_CONSOLE
+				for _step: int in 40:
+					coordinator.vehicle_state.repair_at(repairer.position, 0.1, 1.0)
+				var combat_cap: float = float(coordinator.vehicle_state.max_section_hp[&"front"]) * coordinator.vehicle_state.definition.combat_repair_cap_ratio
+				repair_cap_pass = is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), combat_cap)
+				var test_turret: VehicleModuleState = coordinator.module_system.modules[_test_turret_id]
+				turret_authority_pass = coordinator.module_system.turret_shots > 0 and not test_turret.overheated and test_turret.heat < test_turret.definition.heat_limit
 				coordinator.stage_director.finish_wave()
 				phase = 7
 		7:
 			if elapsed >= 6.35 and not coordinator.active_relic_choices.is_empty():
 				coordinator.select_relic(0)
+				var repairer := coordinator.players_by_peer[NetworkSession.HOST_PEER_ID] as CrewPlayer
+				repairer.position = SurvivalVehicle.REPAIR_CONSOLE
+				for _step: int in 100:
+					coordinator.vehicle_state.repair_at(repairer.position, 0.1, 1.0)
+				repair_full_pass = is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), float(coordinator.vehicle_state.max_section_hp[&"front"]))
 				coordinator.stage_director.begin_combat()
 				phase = 8
 		8:
@@ -193,6 +243,23 @@ func _on_player_ability_snapshot(_peer_id: int, active_time: float, cooldown: fl
 	saw_ability_state = saw_ability_state or (active_time > 0.0 and cooldown > 0.0)
 
 
+func _observe_client_modules() -> void:
+	var system: VehicleModuleSystem = coordinator.module_system
+	saw_module_layout = saw_module_layout or system.modules.size() == 7
+	var has_powered_workbench: bool = false
+	var has_stopped_turret: bool = false
+	for module: VehicleModuleState in system.modules.values():
+		if module.definition.id == &"module_workbench" and module.powered:
+			has_powered_workbench = true
+		if module.definition.id == &"module_turret" and not module.powered:
+			has_stopped_turret = true
+		if module.definition.id == &"module_turret" and module.priority == 2 and module.overheated:
+			saw_turret_overheat = true
+		if saw_turret_overheat and module.definition.id == &"module_turret" and module.priority == 2 and not module.overheated and module.heat <= module.definition.overheat_recovery_heat:
+			saw_turret_recovery = true
+	saw_power_shutdown = saw_power_shutdown or (has_powered_workbench and has_stopped_turret)
+
+
 func _request_network_test_report() -> void:
 	var host_player := coordinator.players_by_peer.get(NetworkSession.HOST_PEER_ID) as CrewPlayer
 	var client_player: CrewPlayer = _find_client_player()
@@ -200,7 +267,7 @@ func _request_network_test_report() -> void:
 	var state_hash: String = _state_hash(
 		coordinator.stage_director.state, coordinator.stage_director.wave_index,
 		coordinator.vehicle_state.hull, float(coordinator.vehicle_state.section_hp[&"front"]),
-		coordinator.reward_system.kills, host_player.position, client_position
+		coordinator.reward_system.kills, host_player.position, client_position, _module_hash()
 	)
 	_receive_final_test_state.rpc(
 		state_hash, coordinator.stage_director.state, coordinator.stage_director.wave_index,
@@ -219,7 +286,7 @@ func _receive_final_test_state(host_hash: String, state: int, wave_index: int, h
 	coordinator.reward_system.kills = kills
 	(coordinator.players_by_peer[NetworkSession.HOST_PEER_ID] as CrewPlayer).position = host_position
 	(coordinator.players_by_peer[NetworkSession.local_peer_id()] as CrewPlayer).position = client_position
-	var client_hash: String = _state_hash(state, wave_index, hull, front, kills, host_position, client_position)
+	var client_hash: String = _state_hash(state, wave_index, hull, front, kills, host_position, client_position, _module_hash())
 	var average_correction: float = replicator.correction_sum / maxf(1.0, float(replicator.correction_count))
 	_submit_network_test_report.rpc_id(
 		NetworkSession.HOST_PEER_ID,
@@ -227,6 +294,7 @@ func _receive_final_test_state(host_hash: String, state: int, wave_index: int, h
 		saw_wave_two, saw_victory, replicator.confirmed_shots > 0, host_hash == client_hash,
 		saw_dodge_state, saw_downed_state, saw_revived_state, saw_departed_state, saw_returned_state,
 		saw_ability_state,
+		saw_module_layout, saw_power_shutdown, saw_turret_overheat, saw_turret_recovery,
 		replicator.max_correction, average_correction
 	)
 
@@ -237,6 +305,7 @@ func _submit_network_test_report(
 	wave_two: bool, victory: bool, shots_synced: bool, hash_matched: bool,
 	dodge_synced: bool, downed_synced: bool, revived_synced: bool, departed_synced: bool, returned_synced: bool,
 	ability_synced: bool,
+	module_layout_synced: bool, power_synced: bool, overheat_synced: bool, recovery_synced: bool,
 	client_max_correction: float, client_average_correction: float
 ) -> void:
 	if not NetworkSession.is_host_authority():
@@ -246,12 +315,14 @@ func _submit_network_test_report(
 		wave_two and victory and shots_synced and hash_matched and
 		dodge_synced and downed_synced and revived_synced and departed_synced and returned_synced and
 		ability_synced and character_selection_pass and ability_authority_pass and
+		module_layout_synced and power_synced and overheat_synced and recovery_synced and
+		module_layout_authority_pass and power_priority_pass and repair_cap_pass and repair_full_pass and turret_authority_pass and
 		dodge_authority_pass and down_duration_pass and revive_authority_pass and return_authority_pass and
 		replicator.remote_inputs_received > 0 and replicator.confirmed_shots > 0
 	)
-	print("NETWORK_TEST_%s inputs=%d shots=%d kills=%d characters=%s abilities=%s dodge=%s revive=%s return=%s hash=%s max_correction=%.3f avg_correction=%.3f" % [
+	print("NETWORK_TEST_%s inputs=%d shots=%d kills=%d modules=%s power=%s repair=%s turret=%s characters=%s abilities=%s dodge=%s revive=%s return=%s hash=%s max_correction=%.3f avg_correction=%.3f" % [
 		"PASS" if passed else "FAIL", replicator.remote_inputs_received, replicator.confirmed_shots,
-		coordinator.reward_system.kills, character_selection_pass, ability_authority_pass, dodge_authority_pass, revive_authority_pass,
+		coordinator.reward_system.kills, module_layout_authority_pass, power_priority_pass, repair_cap_pass and repair_full_pass, turret_authority_pass, character_selection_pass, ability_authority_pass, dodge_authority_pass, revive_authority_pass,
 		return_authority_pass, hash_matched, client_max_correction, client_average_correction,
 	])
 	_finish_network_test.rpc(passed)
@@ -276,8 +347,20 @@ func _find_client_player() -> CrewPlayer:
 	return null
 
 
-func _state_hash(state: int, wave_index: int, hull: float, front: float, kills: int, host_position: Vector2, client_position: Vector2) -> String:
-	return str(hash("%d|%d|%.2f|%.2f|%d|%.2f|%.2f|%.2f|%.2f" % [
+func _state_hash(state: int, wave_index: int, hull: float, front: float, kills: int, host_position: Vector2, client_position: Vector2, module_hash: String) -> String:
+	return str(hash("%d|%d|%.2f|%.2f|%d|%.2f|%.2f|%.2f|%.2f|%s" % [
 		state, wave_index, hull, front, kills,
-		host_position.x, host_position.y, client_position.x, client_position.y,
+		host_position.x, host_position.y, client_position.x, client_position.y, module_hash,
 	]))
+
+
+func _module_hash() -> String:
+	var lines := PackedStringArray()
+	var ids: Array[int] = []
+	for key: Variant in coordinator.module_system.modules:
+		ids.append(int(key))
+	ids.sort()
+	for instance_id: int in ids:
+		var module: VehicleModuleState = coordinator.module_system.modules[instance_id]
+		lines.append("%d:%s:%d:%d:%d:%d" % [instance_id, module.definition.id, module.grid_position.x, module.grid_position.y, module.priority, 1 if module.powered else 0])
+	return ",".join(lines) + ":scrap=%d" % coordinator.module_system.scrap

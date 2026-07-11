@@ -13,6 +13,8 @@ var max_section_hp: Dictionary = {}
 var section_hp: Dictionary = {}
 var supplies: float = 0.0
 var repair_multiplier: float = 1.0
+var module_system: VehicleModuleSystem
+var combat_active: bool = false
 var _repair_supply_progress: float = 0.0
 
 
@@ -59,16 +61,36 @@ func take_attack(section: StringName, amount: float) -> void:
 func repair_at(player_position: Vector2, delta: float, player_multiplier: float) -> bool:
 	if player_position.distance_to(SurvivalVehicle.REPAIR_CONSOLE) > definition.repair_interaction_range_px or supplies < 1.0:
 		return false
-	var target: StringName = _lowest_damaged_section()
-	var heal_per_second: float = definition.repair_hp_per_second * repair_multiplier * player_multiplier
+	var workbench: VehicleModuleState = module_system.workbench_module() if module_system != null else null
+	if workbench == null:
+		return false
+	var workbench_operational: bool = workbench.is_operational()
+	var cap_ratio: float = definition.combat_repair_cap_ratio if combat_active else 1.0
+	var target_module: VehicleModuleState = module_system.lowest_damaged_module(cap_ratio)
+	var target: StringName = _lowest_damaged_section(cap_ratio)
+	var section_ratio_value: float = section_ratio(target) if target != &"" else cap_ratio
+	if target_module != null and target_module.hp_ratio() <= section_ratio_value:
+		target = &""
+	var speed_bonus: float = workbench.definition.repair_speed_multiplier if workbench_operational else 1.0
+	var heal_per_second: float = definition.repair_hp_per_second * repair_multiplier * player_multiplier * speed_bonus
 	var heal: float = heal_per_second * delta
-	if target != &"":
-		section_hp[target] = minf(float(max_section_hp[target]), float(section_hp[target]) + heal)
-	elif hull < max_hull:
-		hull = minf(max_hull, hull + heal * definition.hull_hp_per_supply / definition.exterior_hp_per_supply)
+	var restored: float = 0.0
+	var hp_per_supply: float = definition.exterior_hp_per_supply
+	if target_module != null and target == &"":
+		restored = module_system.repair_module(target_module, heal, cap_ratio)
+		hp_per_supply = definition.module_hp_per_supply
+	elif target != &"":
+		var cap: float = float(max_section_hp[target]) * cap_ratio
+		restored = minf(heal, maxf(0.0, cap - float(section_hp[target])))
+		section_hp[target] = float(section_hp[target]) + restored
+	elif hull < max_hull * cap_ratio:
+		restored = minf(heal, max_hull * cap_ratio - hull)
+		hull += restored
+		hp_per_supply = definition.hull_hp_per_supply
 	else:
 		return false
-	_repair_supply_progress += heal / definition.exterior_hp_per_supply
+	var efficiency: float = workbench.definition.repair_efficiency_multiplier if workbench_operational and not combat_active else 1.0
+	_repair_supply_progress += restored / (hp_per_supply * efficiency)
 	while _repair_supply_progress >= 1.0 and supplies >= 1.0:
 		_repair_supply_progress -= 1.0
 		supplies -= 1.0
@@ -77,11 +99,16 @@ func repair_at(player_position: Vector2, delta: float, player_multiplier: float)
 
 
 func repair_without_supplies(amount: float) -> bool:
-	var target: StringName = _lowest_damaged_section()
-	if target != &"":
-		section_hp[target] = minf(float(max_section_hp[target]), float(section_hp[target]) + amount)
-	elif hull < max_hull:
-		hull = minf(max_hull, hull + amount)
+	var cap_ratio: float = definition.combat_repair_cap_ratio if combat_active else 1.0
+	var target_module: VehicleModuleState = module_system.lowest_damaged_module(cap_ratio) if module_system != null else null
+	var target: StringName = _lowest_damaged_section(cap_ratio)
+	var section_ratio_value: float = section_ratio(target) if target != &"" else cap_ratio
+	if target_module != null and target_module.hp_ratio() <= section_ratio_value:
+		module_system.repair_module(target_module, amount, cap_ratio)
+	elif target != &"":
+		section_hp[target] = minf(float(max_section_hp[target]) * cap_ratio, float(section_hp[target]) + amount)
+	elif hull < max_hull * cap_ratio:
+		hull = minf(max_hull * cap_ratio, hull + amount)
 	else:
 		return false
 	values_changed.emit()
@@ -118,9 +145,9 @@ func apply_network_snapshot(
 	values_changed.emit()
 
 
-func _lowest_damaged_section() -> StringName:
+func _lowest_damaged_section(cap_ratio: float = 1.0) -> StringName:
 	var result: StringName = &""
-	var lowest_ratio: float = 1.01
+	var lowest_ratio: float = cap_ratio
 	for key: StringName in max_section_hp:
 		var ratio: float = float(section_hp[key]) / float(max_section_hp[key])
 		if ratio < 1.0 and ratio < lowest_ratio:

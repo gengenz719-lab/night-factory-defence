@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource path="res://scripts/game/run_coordinator.gd" type="Script" id="1_root"]
 [ext_resource path="res://scripts/game/stage_director.gd" type="Script" id="2_stage"]
@@ -9,6 +9,8 @@
 [ext_resource path="res://scripts/network/net_state_replicator.gd" type="Script" id="7_net"]
 [ext_resource path="res://scripts/game/revive_controller.gd" type="Script" id="8_revive"]
 [ext_resource path="res://scripts/network/player_net_replicator.gd" type="Script" id="9_player_net"]
+[ext_resource path="res://scripts/game/vehicle_module_system.gd" type="Script" id="10_modules"]
+[ext_resource path="res://scripts/network/module_net_replicator.gd" type="Script" id="11_module_net"]
 
 [node name="Run" type="Node2D"]
 script = ExtResource("1_root")
@@ -36,6 +38,12 @@ script = ExtResource("8_revive")
 
 [node name="PlayerNetReplicator" type="Node" parent="."]
 script = ExtResource("9_player_net")
+
+[node name="VehicleModuleSystem" type="Node" parent="."]
+script = ExtResource("10_modules")
+
+[node name="ModuleNetReplicator" type="Node" parent="."]
+script = ExtResource("11_module_net")
 
 [node name="ParallaxWorld" type="Node2D" parent="."]
 

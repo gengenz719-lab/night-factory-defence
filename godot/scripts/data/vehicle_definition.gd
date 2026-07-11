@@ -21,3 +21,12 @@ extends GameDefinition
 @export var breach_seal_supply_cost: int = 8
 @export var repair_interaction_range_px: float = 95.0
 @export var additional_repairer_efficiency: Array[float] = [0.6, 0.3, 0.15]
+@export var grid_width: int = 8
+@export var grid_height: int = 4
+@export var ladder_column: int = 5
+@export var initial_module_ids: Array[StringName] = []
+@export var initial_module_positions: Array[Vector2i] = []
+
+
+func get_referenced_definition_ids() -> Array[StringName]:
+	return initial_module_ids

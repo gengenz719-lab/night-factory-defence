@@ -9,6 +9,7 @@ const ProjectileScript := preload("res://scripts/game/projectile.gd")
 const HudScript := preload("res://scripts/ui/game_hud.gd")
 const SmokeTestScript := preload("res://tests/run_smoke_test.gd")
 const NetworkTestDriverScript := preload("res://tests/network_test_driver.gd")
+const BuildUiScript := preload("res://scripts/ui/vehicle_build_ui.gd")
 
 @onready var stage_director: StageDirector = $StageDirector as StageDirector
 @onready var enemy_director: EnemyDirector = $EnemyDirector as EnemyDirector
@@ -17,12 +18,15 @@ const NetworkTestDriverScript := preload("res://tests/network_test_driver.gd")
 @onready var net_state_replicator: NetStateReplicator = $NetStateReplicator as NetStateReplicator
 @onready var revive_controller: ReviveController = $ReviveController as ReviveController
 @onready var player_net_replicator: PlayerNetReplicator = $PlayerNetReplicator as PlayerNetReplicator
+@onready var module_system: VehicleModuleSystem = $VehicleModuleSystem as VehicleModuleSystem
+@onready var module_net_replicator: ModuleNetReplicator = $ModuleNetReplicator as ModuleNetReplicator
 @onready var parallax_world: Node2D = $ParallaxWorld as Node2D
 @onready var projectiles: Node2D = $Projectiles as Node2D
 
 var random_streams := RunRandomStreams.new()
 var player: CrewPlayer
 var hud: GameHUD
+var build_ui: VehicleBuildUI
 var active_relic_choices: Array[RelicDefinition] = []
 var players_by_peer: Dictionary = {}
 var _initialized: bool = false
@@ -40,7 +44,10 @@ func setup_network_run(run_seed: int) -> void:
 	var waves: Array[WaveDefinition] = _load_waves()
 	var relic_pool: Array[RelicDefinition] = _load_relics()
 	parallax_world.add_child(BackgroundScript.new())
-	vehicle_state.setup(GameCatalog.get_definition(&"vehicle_survival") as VehicleDefinition)
+	var vehicle_definition := GameCatalog.get_definition(&"vehicle_survival") as VehicleDefinition
+	vehicle_state.setup(vehicle_definition)
+	module_system.setup(vehicle_definition, enemy_director)
+	vehicle_state.module_system = module_system
 	var peer_ids: Array[int] = NetworkSession.connected_peer_ids()
 	for roster_index: int in peer_ids.size():
 		var peer_id: int = peer_ids[roster_index]
@@ -61,6 +68,11 @@ func setup_network_run(run_seed: int) -> void:
 	player = players_by_peer.get(NetworkSession.local_peer_id()) as CrewPlayer
 	hud = HudScript.new() as GameHUD
 	add_child(hud)
+	build_ui = BuildUiScript.new() as VehicleBuildUI
+	add_child(build_ui)
+	build_ui.setup(module_system)
+	build_ui.placement_requested.connect(module_net_replicator.request_place)
+	build_ui.priority_requested.connect(module_net_replicator.request_priority)
 
 	var host_player := players_by_peer.get(NetworkSession.HOST_PEER_ID) as CrewPlayer
 	enemy_director.setup(vehicle_state, host_player, random_streams.wave)
@@ -71,6 +83,8 @@ func setup_network_run(run_seed: int) -> void:
 	if not NetworkSession.is_host_authority():
 		stage_director.process_mode = Node.PROCESS_MODE_DISABLED
 	player_net_replicator.setup(self, players_by_peer)
+	module_net_replicator.setup(self, module_system)
+	module_net_replicator.request_rejected.connect(build_ui.show_message)
 	net_state_replicator.setup(self)
 	stage_director.setup(waves)
 	var network_test_driver := NetworkTestDriverScript.new() as NetworkTestDriver
@@ -89,6 +103,7 @@ func _process(_delta: float) -> void:
 		player, vehicle_state, reward_system.kills, reward_system.acquired
 	)
 	hud.update_team_status(players_by_peer, NetworkSession.local_peer_id(), reward_system.kills)
+	build_ui.refresh()
 
 
 func _connect_systems() -> void:
@@ -102,6 +117,10 @@ func _connect_systems() -> void:
 
 
 func _on_prepare_started(_wave: WaveDefinition) -> void:
+	vehicle_state.combat_active = false
+	module_system.combat_active = false
+	module_system.can_edit = true
+	build_ui.set_prepare_mode(true)
 	_set_player_controls(true)
 	hud.hide_overlay()
 	enemy_director.set_enemy_activity(false)
@@ -110,6 +129,10 @@ func _on_prepare_started(_wave: WaveDefinition) -> void:
 
 
 func _on_combat_started(wave: WaveDefinition) -> void:
+	vehicle_state.combat_active = true
+	module_system.combat_active = true
+	module_system.can_edit = false
+	build_ui.set_prepare_mode(false)
 	_set_player_controls(true)
 	if NetworkSession.is_host_authority():
 		enemy_director.begin_wave(wave)
@@ -120,6 +143,9 @@ func _on_reward_requested() -> void:
 	if not NetworkSession.is_host_authority():
 		return
 	enemy_director.end_wave()
+	vehicle_state.combat_active = false
+	module_system.combat_active = false
+	module_system.can_edit = false
 	_set_player_controls(false)
 	active_relic_choices = reward_system.prepare_choices(RELIC_CHOICE_COUNT)
 	hud.show_relic_choices(active_relic_choices)
@@ -198,6 +224,11 @@ func apply_stage_snapshot(state: int, wave_index: int, time_left: float) -> void
 		StageDirector.RunState.DEFEAT:
 			_set_player_controls(false)
 			hud.show_end(false, reward_system.kills, reward_system.acquired)
+	var is_prepare: bool = stage_director.state == StageDirector.RunState.PREPARE
+	vehicle_state.combat_active = stage_director.state == StageDirector.RunState.COMBAT
+	module_system.combat_active = vehicle_state.combat_active
+	module_system.can_edit = is_prepare
+	build_ui.set_prepare_mode(is_prepare)
 
 
 func receive_reward_choices(first_id: String, second_id: String, third_id: String) -> void:
@@ -254,11 +285,14 @@ func _load_relics() -> Array[RelicDefinition]:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not NetworkSession.is_host_authority():
-		return
 	if event is not InputEventKey or not event.pressed or event.echo:
 		return
 	var key_event := event as InputEventKey
+	if key_event.keycode == KEY_B:
+		build_ui.toggle()
+		return
+	if not NetworkSession.is_host_authority():
+		return
 	if key_event.keycode == KEY_F1 and stage_director.state == StageDirector.RunState.PREPARE:
 		stage_director.begin_combat()
 	elif key_event.keycode == KEY_F2 and stage_director.state == StageDirector.RunState.COMBAT:
