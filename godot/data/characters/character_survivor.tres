@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/character_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"character_survivor"
+display_name_key = &"character.survivor.name"
+description_key = &"character.survivor.description"
+tags = Array[StringName]([&"character", &"gunner"])
+max_hp = 100.0
+move_speed_cells_per_second = 3.8
+jump_height_cells = 1.7
+gravity_px = 1450.0
+dodge_distance_cells = 1.5
+dodge_invulnerability_seconds = 0.2
+dodge_cooldown_seconds = 1.4
+melee_damage = 10.0
+melee_cooldown_seconds = 0.8
+revive_seconds = 3.0
+downed_grace_seconds = 20.0
+return_wait_seconds = 8.0
+critical_chance = 0.05
+repair_speed_multiplier = 1.0
+operation_speed_multiplier = 1.0
+starting_weapon_id = &"weapon_rifle"
+damage_invulnerability_seconds = 0.7
+respawn_health_ratio = 0.5
+repair_tap_seconds = 0.25
+tap_move_step_px = 12.0
+climb_horizontal_speed_px = 300.0
+climb_vertical_speed_px = 245.0

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"enemy_climber"
+display_name_key = &"enemy.climber.name"
+description_key = &"enemy.climber.description"
+tags = Array[StringName]([&"enemy", &"climber", &"invader"])
+unlock_wave = 3
+threat_cost = 3
+max_hp = 55.0
+speed_cells_per_second = 1.1
+player_damage = 10.0
+exterior_dps = 8.0
+stagger_resistance = 30.0
+path_type = &"side_roof_invader"

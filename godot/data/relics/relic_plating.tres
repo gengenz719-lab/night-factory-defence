@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="RelicDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/relic_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"relic_plating"
+display_name_key = &"relic.plating.name"
+description_key = &"relic.plating.description"
+tags = Array[StringName]([&"relic", &"vehicle"])
+fallback_display_name = "補強板"
+fallback_description = "全外装の最大HP +20%\n増加分を即時回復"
+category = &"vehicle"
+rarity = &"common"
+max_stacks = 3
+choice_order = 1
+exterior_hp_multiplier = 1.2
+heal_exterior_increase = true

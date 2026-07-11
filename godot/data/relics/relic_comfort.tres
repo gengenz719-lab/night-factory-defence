@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="RelicDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/relic_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"relic_comfort"
+display_name_key = &"relic.comfort.name"
+description_key = &"relic.comfort.description"
+tags = Array[StringName]([&"relic", &"special"])
+fallback_display_name = "居住改善"
+fallback_description = "Wave間に全員のHPを5回復"
+category = &"special"
+rarity = &"common"
+max_stacks = 2
+choice_order = 2
+wave_end_player_heal = 5.0
+comfort_effect_multiplier = 1.5

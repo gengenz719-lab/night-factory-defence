@@ -15,16 +15,12 @@ const ROOF_FLOOR_Y: float = 300.0
 const LADDER_X: float = 800.0
 const REPAIR_CONSOLE: Vector2 = Vector2(600, 610)
 
-var max_hull: float = 1000.0
-var hull: float = 1000.0
-var max_section_hp: Dictionary = {
-	&"front": 300.0,
-	&"rear": 250.0,
-	&"roof": 220.0,
-	&"lower": 220.0,
-}
+var definition: VehicleDefinition
+var max_hull: float = 0.0
+var hull: float = 0.0
+var max_section_hp: Dictionary = {}
 var section_hp: Dictionary = {}
-var supplies: float = 100.0
+var supplies: float = 0.0
 var repair_multiplier: float = 1.0
 var _repair_supply_progress: float = 0.0
 var _damage_flash: float = 0.0
@@ -32,8 +28,6 @@ var _vehicle_sprite: Sprite2D
 
 
 func _ready() -> void:
-	for key: StringName in max_section_hp:
-		section_hp[key] = max_section_hp[key]
 	z_index = 10
 	_vehicle_sprite = Sprite2D.new()
 	_vehicle_sprite.texture = VEHICLE_TEXTURE
@@ -42,6 +36,20 @@ func _ready() -> void:
 	_vehicle_sprite.z_index = -1
 	add_child(_vehicle_sprite)
 	queue_redraw()
+
+
+func setup(vehicle_data: VehicleDefinition) -> void:
+	definition = vehicle_data
+	max_hull = definition.hull_hp
+	hull = max_hull
+	max_section_hp = {
+		&"front": definition.front_armor_hp,
+		&"rear": definition.rear_armor_hp,
+		&"roof": definition.roof_armor_hp,
+		&"lower": definition.lower_armor_hp,
+	}
+	section_hp = max_section_hp.duplicate()
+	supplies = definition.initial_supplies
 
 
 func _process(delta: float) -> void:
@@ -82,19 +90,19 @@ func take_attack(section: StringName, amount: float) -> void:
 
 
 func repair_at(player_position: Vector2, delta: float, player_multiplier: float) -> bool:
-	if player_position.distance_to(REPAIR_CONSOLE) > 95.0 or supplies < 1.0:
+	if player_position.distance_to(REPAIR_CONSOLE) > definition.repair_interaction_range_px or supplies < 1.0:
 		return false
 	var target: StringName = _lowest_damaged_section()
-	var heal_per_second: float = 20.0 * repair_multiplier * player_multiplier
+	var heal_per_second: float = definition.repair_hp_per_second * repair_multiplier * player_multiplier
 	var heal: float = heal_per_second * delta
 	if target != &"":
 		section_hp[target] = minf(float(max_section_hp[target]), float(section_hp[target]) + heal)
 	elif hull < max_hull:
-		hull = minf(max_hull, hull + heal * 0.8)
+		hull = minf(max_hull, hull + heal * definition.hull_hp_per_supply / definition.exterior_hp_per_supply)
 	else:
 		return false
 
-	_repair_supply_progress += heal / 10.0
+	_repair_supply_progress += heal / definition.exterior_hp_per_supply
 	while _repair_supply_progress >= 1.0 and supplies >= 1.0:
 		_repair_supply_progress -= 1.0
 		supplies -= 1.0
@@ -102,14 +110,12 @@ func repair_at(player_position: Vector2, delta: float, player_multiplier: float)
 	return true
 
 
-func apply_plating_relic() -> void:
-	max_hull += 200.0
-	# テスト版では車体も即時回復し、選択結果をすぐ体感できるようにする。
-	hull = minf(max_hull, hull + 200.0)
+func apply_relic(relic: RelicDefinition) -> void:
 	for key: StringName in max_section_hp:
-		var bonus: float = float(max_section_hp[key]) * 0.20
-		max_section_hp[key] = float(max_section_hp[key]) + bonus
-		section_hp[key] = minf(float(max_section_hp[key]), float(section_hp[key]) + bonus)
+		var old_max: float = float(max_section_hp[key])
+		max_section_hp[key] = old_max * relic.exterior_hp_multiplier
+		if relic.heal_exterior_increase:
+			section_hp[key] = minf(float(max_section_hp[key]), float(section_hp[key]) + float(max_section_hp[key]) - old_max)
 	values_changed.emit()
 
 

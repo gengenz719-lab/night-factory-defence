@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"enemy_walker"
+display_name_key = &"enemy.walker.name"
+description_key = &"enemy.walker.description"
+tags = Array[StringName]([&"enemy", &"ground"])
+unlock_wave = 1
+threat_cost = 1
+max_hp = 40.0
+speed_cells_per_second = 0.75
+player_damage = 8.0
+exterior_dps = 7.0
+stagger_resistance = 20.0
+path_type = &"ground"

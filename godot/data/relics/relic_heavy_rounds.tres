@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="RelicDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/relic_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"relic_heavy_rounds"
+display_name_key = &"relic.heavy_rounds.name"
+description_key = &"relic.heavy_rounds.description"
+tags = Array[StringName]([&"relic", &"combat"])
+fallback_display_name = "増し弾"
+fallback_description = "プレイヤーの射撃ダメージ +18%"
+category = &"combat"
+rarity = &"common"
+max_stacks = 3
+choice_order = 0
+weapon_damage_multiplier = 1.18

@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="VehicleDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/vehicle_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"vehicle_survival"
+display_name_key = &"vehicle.survival.name"
+description_key = &"vehicle.survival.description"
+tags = Array[StringName]([&"vehicle"])
+hull_hp = 1000.0
+front_armor_hp = 300.0
+rear_armor_hp = 250.0
+roof_armor_hp = 220.0
+lower_armor_hp = 220.0
+initial_power = 6
+initial_scrap = 160
+initial_supplies = 100.0
+initial_fuel = 3
+scrap_cap = 9999
+supplies_cap = 200
+fuel_cap = 9
+repair_hp_per_second = 20.0
+hull_hp_per_supply = 8.0
+exterior_hp_per_supply = 10.0
+module_hp_per_supply = 12.0
+combat_repair_cap_ratio = 0.6
+breach_seal_supply_cost = 8
+repair_interaction_range_px = 95.0
+additional_repairer_efficiency = Array[float]([0.6, 0.3, 0.15])
