@@ -13,9 +13,9 @@
 ✅ Web書き出し(godot-play/、GitHub Pages配信)
 ✅ グラフィック第1弾(車両・アクターのオリジナルアート差し替え)
 ✅ Spike B: 2人ENet通信 — 合格(godot-spikes/spike_b_net/。docs/14 §17に結果記載)
-🚧 Phase 0: Spike B後始末 ← いまここ
-⬜ Phase 1: 製品基盤(Resource駆動+状態機械+ネット複製層+ロビー)
-⬜ Phase 2: 最小スライス残機能(13 §12.1)
+✅ Phase 0: Spike B後始末
+✅ Phase 1: 製品基盤(Resource駆動+状態機械+ネット複製層+ロビー)— WP1-1〜1-4完了(PR #2〜#5)
+🚧 Phase 2: 最小スライス残機能(13 §12.1)← いまここ
 ⬜ Phase 3: 検証ゲート(Spike C・受け入れテスト・パートナーテスト)
 ⬜ 🎨 グラフィックフェーズ(移行ゲート通過後に本格開始)
 ⬜ フルラン・アルファ(13 §12.2)
