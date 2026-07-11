@@ -6,16 +6,18 @@ signal died(enemy: EnemyUnit)
 const WALKER_TEXTURE: Texture2D = preload("res://assets/art/actors/enemy_walker.png")
 const RUNNER_TEXTURE: Texture2D = preload("res://assets/art/actors/enemy_runner.png")
 const CLIMBER_TEXTURE: Texture2D = preload("res://assets/art/actors/enemy_climber.png")
+const CELL_SIZE_PX: float = 64.0
 
-var enemy_type: StringName = &"walker"
+var definition: EnemyDefinition
+var enemy_type: StringName = &"enemy_walker"
 var side: int = 1
 var vehicle: SurvivalVehicle
 var player: CrewPlayer
-var max_hp: float = 40.0
-var hp: float = 40.0
-var speed: float = 78.0
-var player_damage: float = 8.0
-var vehicle_damage: float = 7.0
+var max_hp: float = 0.0
+var hp: float = 0.0
+var speed: float = 0.0
+var player_damage: float = 0.0
+var exterior_dps: float = 0.0
 var attack_cooldown: float = 0.0
 var active: bool = true
 var inside_vehicle: bool = false
@@ -30,29 +32,18 @@ func _ready() -> void:
 	_configure_sprite()
 
 
-func setup(kind: StringName, spawn_side: int, target_vehicle: SurvivalVehicle, target_player: CrewPlayer) -> void:
-	enemy_type = kind
+func setup(enemy_data: EnemyDefinition, spawn_side: int, target_vehicle: SurvivalVehicle, target_player: CrewPlayer) -> void:
+	definition = enemy_data
+	enemy_type = definition.id
 	side = spawn_side
 	vehicle = target_vehicle
 	player = target_player
-	match enemy_type:
-		&"runner":
-			max_hp = 32.0
-			speed = 150.0
-			player_damage = 7.0
-			vehicle_damage = 6.0
-		&"climber":
-			max_hp = 55.0
-			speed = 105.0
-			player_damage = 10.0
-			vehicle_damage = 8.0
-		_:
-			max_hp = 40.0
-			speed = 76.0
-			player_damage = 8.0
-			vehicle_damage = 7.0
+	max_hp = definition.max_hp
+	speed = definition.speed_cells_per_second * CELL_SIZE_PX
+	player_damage = definition.player_damage
+	exterior_dps = definition.exterior_dps
 	hp = max_hp
-	if enemy_type == &"climber":
+	if enemy_type == &"enemy_climber":
 		position = Vector2(-55.0 if side < 0 else 1655.0, 272.0)
 	else:
 		position = Vector2(-55.0 if side < 0 else 1655.0, 675.0)
@@ -70,29 +61,29 @@ func _process(delta: float) -> void:
 	if _sprite != null:
 		_sprite.modulate = Color.WHITE if _hit_flash <= 0.0 else Color("#fff2d1")
 
-	var section: StringName = &"roof" if enemy_type == &"climber" else &"front" if side < 0 else &"rear"
-	if not inside_vehicle and vehicle.is_breached(section) and enemy_type != &"climber":
+	var section: StringName = &"roof" if enemy_type == &"enemy_climber" else &"front" if side < 0 else &"rear"
+	if not inside_vehicle and vehicle.is_breached(section) and enemy_type != &"enemy_climber":
 		inside_vehicle = true
 
 	if inside_vehicle:
 		var target: Vector2 = player.position if not player.is_downed else Vector2(SurvivalVehicle.LADDER_X, SurvivalVehicle.LOWER_FLOOR_Y - 25.0)
 		position = position.move_toward(target, speed * delta)
-		if position.distance_to(target) < 44.0 and attack_cooldown <= 0.0:
+		if position.distance_to(target) < definition.interior_attack_range_px and attack_cooldown <= 0.0:
 			if player.is_downed:
-				vehicle.take_attack(section, vehicle_damage)
+				vehicle.take_attack(section, exterior_dps * definition.attack_interval_seconds)
 			else:
 				player.take_damage(player_damage)
 				# 侵入者はクルーと戦いながら車内設備・配線も少しずつ破壊する。
-				vehicle.take_attack(section, vehicle_damage * 0.12)
-			attack_cooldown = 0.9
+				vehicle.take_attack(section, exterior_dps * definition.attack_interval_seconds * definition.interior_vehicle_damage_ratio)
+			attack_cooldown = definition.attack_interval_seconds
 	else:
 		var target_x: float = SurvivalVehicle.LEFT_X - 26.0 if side < 0 else SurvivalVehicle.RIGHT_X + 26.0
-		var target_y: float = 285.0 if enemy_type == &"climber" else 675.0
+		var target_y: float = 285.0 if enemy_type == &"enemy_climber" else 675.0
 		var target_position: Vector2 = Vector2(target_x, target_y)
 		position = position.move_toward(target_position, speed * delta)
-		if position.distance_to(target_position) < 18.0 and attack_cooldown <= 0.0:
-			vehicle.take_attack(section, vehicle_damage)
-			attack_cooldown = 0.75
+		if position.distance_to(target_position) < definition.exterior_attack_range_px and attack_cooldown <= 0.0:
+			vehicle.take_attack(section, exterior_dps * definition.attack_interval_seconds)
+			attack_cooldown = definition.attack_interval_seconds
 	queue_redraw()
 
 
@@ -120,10 +111,10 @@ func _configure_sprite() -> void:
 	var texture: Texture2D = WALKER_TEXTURE
 	var target_height: float = 98.0
 	match enemy_type:
-		&"runner":
+		&"enemy_runner":
 			texture = RUNNER_TEXTURE
 			target_height = 90.0
-		&"climber":
+		&"enemy_climber":
 			texture = CLIMBER_TEXTURE
 			target_height = 110.0
 	_sprite.texture = texture

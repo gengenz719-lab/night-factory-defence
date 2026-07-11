@@ -7,17 +7,17 @@ signal health_changed
 const BODY_TEXTURE: Texture2D = preload("res://assets/art/actors/crew_survivor.png")
 const RIFLE_TEXTURE: Texture2D = preload("res://assets/art/actors/crew_rifle.png")
 const HALF_HEIGHT: float = 23.0
-const MOVE_SPEED: float = 250.0
-const JUMP_SPEED: float = 520.0
-const GRAVITY: float = 1450.0
+const CELL_SIZE_PX: float = 64.0
 
 var vehicle: SurvivalVehicle
+var definition: CharacterDefinition
+var weapon_definition: WeaponDefinition
 var current_level: int = 0
 var vertical_velocity: float = 0.0
 var on_floor: bool = true
 var controls_enabled: bool = true
-var max_hp: float = 100.0
-var hp: float = 100.0
+var max_hp: float = 0.0
+var hp: float = 0.0
 var damage_multiplier: float = 1.0
 var repair_multiplier: float = 1.0
 var fire_cooldown: float = 0.0
@@ -49,8 +49,13 @@ func _ready() -> void:
 	_update_visuals()
 
 
-func setup(target_vehicle: SurvivalVehicle) -> void:
+func setup(target_vehicle: SurvivalVehicle, character_data: CharacterDefinition, weapon_data: WeaponDefinition) -> void:
 	vehicle = target_vehicle
+	definition = character_data
+	weapon_definition = weapon_data
+	max_hp = definition.max_hp
+	hp = max_hp
+	repair_multiplier = definition.repair_speed_multiplier
 	position = Vector2(590, vehicle.floor_y(0) - HALF_HEIGHT)
 	z_index = 30
 	queue_redraw()
@@ -84,12 +89,12 @@ func _physics_process(delta: float) -> void:
 
 func _handle_movement(delta: float) -> void:
 	var axis: float = Input.get_axis(&"move_left", &"move_right")
-	position.x += axis * MOVE_SPEED * delta
+	position.x += axis * definition.move_speed_cells_per_second * CELL_SIZE_PX * delta
 	# 短いタップでも動いたことが分かる最小ステップ。押し続け移動と併用する。
 	if Input.is_action_just_pressed(&"move_left"):
-		position.x -= 12.0
+		position.x -= definition.tap_move_step_px
 	if Input.is_action_just_pressed(&"move_right"):
-		position.x += 12.0
+		position.x += definition.tap_move_step_px
 	position.x = clampf(position.x, SurvivalVehicle.LEFT_X + 18.0, SurvivalVehicle.RIGHT_X - 18.0)
 
 	if Input.is_action_just_pressed(&"jump") and on_floor:
@@ -97,7 +102,7 @@ func _handle_movement(delta: float) -> void:
 			_climb_target_level = current_level + 1
 			on_floor = false
 		else:
-			vertical_velocity = -JUMP_SPEED
+			vertical_velocity = -sqrt(2.0 * definition.gravity_px * definition.jump_height_cells * CELL_SIZE_PX)
 			on_floor = false
 
 	if Input.is_action_just_pressed(&"drop_down") and on_floor:
@@ -106,7 +111,7 @@ func _handle_movement(delta: float) -> void:
 			on_floor = false
 
 	if not on_floor:
-		vertical_velocity += GRAVITY * delta
+		vertical_velocity += definition.gravity_px * delta
 		position.y += vertical_velocity * delta
 		var floor_center: float = vehicle.floor_y(current_level) - HALF_HEIGHT
 		if vertical_velocity >= 0.0 and position.y >= floor_center:
@@ -118,9 +123,9 @@ func _handle_movement(delta: float) -> void:
 func _handle_climbing(delta: float) -> void:
 	if _climb_target_level < 0:
 		return
-	position.x = move_toward(position.x, SurvivalVehicle.LADDER_X, 300.0 * delta)
+	position.x = move_toward(position.x, SurvivalVehicle.LADDER_X, definition.climb_horizontal_speed_px * delta)
 	var target_y: float = vehicle.floor_y(_climb_target_level) - HALF_HEIGHT
-	position.y = move_toward(position.y, target_y, 245.0 * delta)
+	position.y = move_toward(position.y, target_y, definition.climb_vertical_speed_px * delta)
 	if absf(position.y - target_y) < 1.0:
 		position.y = target_y
 		current_level = _climb_target_level
@@ -132,37 +137,44 @@ func _handle_actions(delta: float) -> void:
 	_is_repairing = false
 	if Input.is_action_just_pressed(&"interact"):
 		# タップ時にも5HP相当の修理を行い、入力フィードバックを返す。
-		_is_repairing = vehicle.repair_at(position, 0.25, repair_multiplier)
+		_is_repairing = vehicle.repair_at(position, definition.repair_tap_seconds, repair_multiplier)
 	elif Input.is_action_pressed(&"interact"):
 		_is_repairing = vehicle.repair_at(position, delta, repair_multiplier)
 
 	if Input.is_action_pressed(&"fire_primary") and fire_cooldown <= 0.0 and not _is_repairing:
 		var direction: Vector2 = position.direction_to(aim_position)
 		if direction.length_squared() > 0.1:
-			shoot_requested.emit(position + direction * 38.0, direction, 15.0 * damage_multiplier)
-			fire_cooldown = 0.25
+			shoot_requested.emit(position + direction * 38.0, direction, weapon_definition.damage_per_shot * damage_multiplier)
+			fire_cooldown = 1.0 / weapon_definition.shots_per_second
 
 
 func take_damage(amount: float) -> void:
 	if invulnerable_time > 0.0 or is_downed:
 		return
 	hp = maxf(0.0, hp - amount)
-	invulnerable_time = 0.7
+	invulnerable_time = definition.damage_invulnerability_seconds
 	health_changed.emit()
 	if hp <= 0.0:
 		is_downed = true
-		downed_time = 6.0
+		downed_time = definition.downed_grace_seconds
 		controls_enabled = false
 
 
 func _respawn() -> void:
 	is_downed = false
-	hp = max_hp * 0.5
+	hp = max_hp * definition.respawn_health_ratio
 	current_level = 0
 	position = Vector2(590, vehicle.floor_y(0) - HALF_HEIGHT)
 	controls_enabled = true
 	invulnerable_time = 2.0
 	health_changed.emit()
+
+
+func apply_relic(relic: RelicDefinition) -> void:
+	damage_multiplier *= relic.weapon_damage_multiplier
+	if relic.wave_end_player_heal > 0.0:
+		hp = minf(max_hp, hp + relic.wave_end_player_heal)
+		health_changed.emit()
 
 
 func _draw() -> void:

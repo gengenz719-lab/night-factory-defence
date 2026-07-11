@@ -2,14 +2,17 @@ class_name PlayerProjectile
 extends Node2D
 
 var velocity: Vector2 = Vector2.ZERO
-var damage: float = 15.0
-var lifetime: float = 2.2
+var damage: float = 0.0
+var lifetime: float = 0.0
+var hit_radius: float = 0.0
 
 
-func setup(origin: Vector2, direction: Vector2, shot_damage: float) -> void:
+func setup(origin: Vector2, direction: Vector2, shot_damage: float, weapon: WeaponDefinition) -> void:
 	position = origin
-	velocity = direction.normalized() * 860.0
+	velocity = direction.normalized() * weapon.projectile_speed_px
 	damage = shot_damage
+	lifetime = weapon.projectile_lifetime_seconds
+	hit_radius = weapon.projectile_hit_radius_px
 	z_index = 40
 	queue_redraw()
 
@@ -19,7 +22,7 @@ func _process(delta: float) -> void:
 	lifetime -= delta
 	for node: Node in get_tree().get_nodes_in_group(&"enemies"):
 		var enemy: EnemyUnit = node as EnemyUnit
-		if enemy != null and is_instance_valid(enemy) and position.distance_to(enemy.position) < 25.0:
+		if enemy != null and is_instance_valid(enemy) and position.distance_to(enemy.position) < hit_radius:
 			enemy.take_damage(damage)
 			queue_free()
 			return

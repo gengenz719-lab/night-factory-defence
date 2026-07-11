@@ -20,16 +20,17 @@ const REQUIRED_PHYSICS_LAYERS: Array[String] = [
 
 enum RunState { PREPARE, COMBAT, REWARD, VICTORY, DEFEAT }
 
-const WAVE_DURATION: float = 90.0
-const PREPARE_DURATION: float = 10.0
-const MAX_WAVE: int = 2
-
 var state: RunState = RunState.PREPARE
 var wave: int = 1
-var state_time: float = PREPARE_DURATION
+var state_time: float = 0.0
 var spawn_time: float = 0.0
 var kills: int = 0
-var relics: Array[String] = []
+var relics: Array[RelicDefinition] = []
+var relic_choices: Array[RelicDefinition] = []
+var wave_definitions: Array[WaveDefinition] = []
+var current_wave: WaveDefinition
+var character_definition: CharacterDefinition
+var weapon_definition: WeaponDefinition
 var rng := RandomNumberGenerator.new()
 
 var background: ScrollingBackground
@@ -40,17 +41,19 @@ var hud: GameHUD
 
 func _ready() -> void:
 	rng.seed = 7192026
+	_load_definitions()
 
 	background = BackgroundScript.new() as ScrollingBackground
 	add_child(background)
 
 	vehicle = VehicleScript.new() as SurvivalVehicle
+	vehicle.setup(GameCatalog.get_definition(&"vehicle_survival") as VehicleDefinition)
 	add_child(vehicle)
 	vehicle.destroyed.connect(_on_vehicle_destroyed)
 
 	player = PlayerScript.new() as CrewPlayer
 	add_child(player)
-	player.setup(vehicle)
+	player.setup(vehicle, character_definition, weapon_definition)
 	player.shoot_requested.connect(_on_player_shoot)
 
 	hud = HudScript.new() as GameHUD
@@ -73,19 +76,32 @@ func _process(delta: float) -> void:
 			spawn_time -= delta
 			if spawn_time <= 0.0:
 				_spawn_enemy()
-				spawn_time = 1.45 if wave == 1 else 1.05
+				spawn_time = current_wave.spawn_interval_seconds
 			if state_time <= 0.0:
 				_finish_wave()
 		_:
 			pass
 
 	var display_time: float = maxf(0.0, state_time)
-	hud.update_status(wave, _state_text(), display_time, player, vehicle, kills, relics)
+	hud.update_status(wave, wave_definitions.size(), _state_text(), display_time, player, vehicle, kills, relics)
+
+
+func _load_definitions() -> void:
+	character_definition = GameCatalog.get_definition(&"character_survivor") as CharacterDefinition
+	weapon_definition = GameCatalog.get_definition(character_definition.starting_weapon_id) as WeaponDefinition
+	for definition: GameDefinition in GameCatalog.get_definitions_with_tag(&"wave"):
+		wave_definitions.append(definition as WaveDefinition)
+	wave_definitions.sort_custom(func(a: WaveDefinition, b: WaveDefinition) -> bool: return a.wave_number < b.wave_number)
+	for definition: GameDefinition in GameCatalog.get_definitions_with_tag(&"relic"):
+		relic_choices.append(definition as RelicDefinition)
+	relic_choices.sort_custom(func(a: RelicDefinition, b: RelicDefinition) -> bool: return a.choice_order < b.choice_order)
+	current_wave = wave_definitions[0]
 
 
 func _begin_prepare() -> void:
 	state = RunState.PREPARE
-	state_time = PREPARE_DURATION
+	current_wave = wave_definitions[wave - 1]
+	state_time = current_wave.prepare_duration_seconds
 	spawn_time = 0.0
 	player.controls_enabled = true
 	hud.hide_overlay()
@@ -94,8 +110,8 @@ func _begin_prepare() -> void:
 
 func _begin_combat() -> void:
 	state = RunState.COMBAT
-	state_time = WAVE_DURATION
-	spawn_time = 0.2
+	state_time = current_wave.duration_seconds
+	spawn_time = current_wave.first_spawn_delay_seconds
 	player.controls_enabled = true
 	_set_enemy_activity(true)
 
@@ -103,46 +119,44 @@ func _begin_combat() -> void:
 func _finish_wave() -> void:
 	_clear_enemies()
 	player.controls_enabled = false
-	if wave >= MAX_WAVE:
+	if wave >= wave_definitions.size():
 		state = RunState.VICTORY
 		hud.show_end(true, kills, relics)
 		return
 	state = RunState.REWARD
-	hud.show_relic_choices()
+	hud.show_relic_choices(relic_choices)
 
 
 func _on_relic_selected(index: int) -> void:
-	match index:
-		0:
-			player.damage_multiplier *= 1.25
-			relics.append("増し弾")
-		1:
-			vehicle.apply_plating_relic()
-			relics.append("補強板")
-		2:
-			player.repair_multiplier *= 1.5
-			relics.append("高速修理")
+	var selected: RelicDefinition = relic_choices[index]
+	player.apply_relic(selected)
+	vehicle.apply_relic(selected)
+	relics.append(selected)
 	wave += 1
 	_begin_prepare()
 
 
 func _spawn_enemy() -> void:
-	if get_tree().get_nodes_in_group(&"enemies").size() >= 32:
+	if get_tree().get_nodes_in_group(&"enemies").size() >= current_wave.max_alive_enemies:
 		return
-	var kind: StringName = &"walker"
-	var roll: float = rng.randf()
-	if wave >= 2:
-		if roll < 0.26:
-			kind = &"climber"
-		elif roll < 0.58:
-			kind = &"runner"
-	elif roll < 0.24:
-		kind = &"runner"
-	var side: int = -1 if rng.randf() < 0.48 else 1
+	var enemy_definition: EnemyDefinition = _select_enemy_definition()
+	var elapsed: float = current_wave.duration_seconds - state_time
+	var front_only: bool = current_wave.first_front_only_seconds > 0.0 and elapsed < current_wave.first_front_only_seconds
+	var side: int = -1 if front_only or rng.randf() < current_wave.front_spawn_chance else 1
 	var enemy: EnemyUnit = EnemyScript.new() as EnemyUnit
 	add_child(enemy)
-	enemy.setup(kind, side, vehicle, player)
+	enemy.setup(enemy_definition, side, vehicle, player)
 	enemy.died.connect(_on_enemy_died)
+
+
+func _select_enemy_definition() -> EnemyDefinition:
+	var roll: float = rng.randf()
+	var cumulative: float = 0.0
+	for index: int in current_wave.enemy_ids.size():
+		cumulative += current_wave.enemy_weights[index]
+		if roll <= cumulative:
+			return GameCatalog.get_definition(current_wave.enemy_ids[index]) as EnemyDefinition
+	return GameCatalog.get_definition(current_wave.enemy_ids.back()) as EnemyDefinition
 
 
 func _on_enemy_died(_enemy: EnemyUnit) -> void:
@@ -154,7 +168,7 @@ func _on_player_shoot(origin: Vector2, direction: Vector2, damage: float) -> voi
 		return
 	var projectile: PlayerProjectile = ProjectileScript.new() as PlayerProjectile
 	add_child(projectile)
-	projectile.setup(origin, direction, damage)
+	projectile.setup(origin, direction, damage, weapon_definition)
 
 
 func _on_vehicle_destroyed() -> void:
@@ -214,6 +228,8 @@ func _run_smoke_test() -> void:
 	var catalog_errors: PackedStringArray = GameCatalog.reload_catalog()
 	for catalog_error: String in catalog_errors:
 		failures.append("catalog: %s" % catalog_error)
+	if GameCatalog.get_all_definitions().size() != GameCatalog.DEFINITION_PATHS.size():
+		failures.append("catalog definition count mismatch")
 	var empty_definition := GameDefinition.new()
 	var duplicate_a := GameDefinition.new()
 	duplicate_a.id = &"test_duplicate"
@@ -241,7 +257,7 @@ func _run_smoke_test() -> void:
 
 	# Wave開始と敵生成
 	_begin_combat()
-	if state != RunState.COMBAT or not is_equal_approx(state_time, WAVE_DURATION):
+	if state != RunState.COMBAT or not is_equal_approx(state_time, current_wave.duration_seconds):
 		failures.append("combat did not start")
 	_spawn_enemy()
 	await get_tree().process_frame
@@ -256,10 +272,10 @@ func _run_smoke_test() -> void:
 			failures.append("enemy kill was not counted")
 
 	# 全敵種のスプライト初期化
-	for test_kind: StringName in [&"walker", &"runner", &"climber"]:
+	for test_kind: StringName in [&"enemy_walker", &"enemy_runner", &"enemy_climber"]:
 		var visual_enemy: EnemyUnit = EnemyScript.new() as EnemyUnit
 		add_child(visual_enemy)
-		visual_enemy.setup(test_kind, -1, vehicle, player)
+		visual_enemy.setup(GameCatalog.get_definition(test_kind) as EnemyDefinition, -1, vehicle, player)
 		await get_tree().process_frame
 		if visual_enemy.get_child_count() == 0:
 			failures.append("enemy visual missing: %s" % test_kind)
@@ -281,9 +297,9 @@ func _run_smoke_test() -> void:
 	_finish_wave()
 	if state != RunState.REWARD:
 		failures.append("wave 1 did not enter reward state")
-	var old_max_hull: float = vehicle.max_hull
+	var old_front_max: float = float(vehicle.max_section_hp[&"front"])
 	_on_relic_selected(1)
-	if wave != 2 or vehicle.max_hull <= old_max_hull or relics.size() != 1:
+	if wave != 2 or float(vehicle.max_section_hp[&"front"]) <= old_front_max or relics.size() != 1:
 		failures.append("relic application mismatch")
 
 	# Wave2仮勝利
@@ -293,7 +309,7 @@ func _run_smoke_test() -> void:
 		failures.append("wave 2 did not enter victory state")
 
 	if failures.is_empty():
-		print("SMOKE_TEST_PASS wave=%d kills=%d hull=%.0f relic=%s" % [wave, kills, vehicle.hull, relics[0]])
+		print("SMOKE_TEST_PASS wave=%d kills=%d hull=%.0f relic=%s catalog=%d" % [wave, kills, vehicle.hull, relics[0].fallback_display_name, GameCatalog.get_all_definitions().size()])
 		get_tree().quit(0)
 	else:
 		for failure: String in failures:

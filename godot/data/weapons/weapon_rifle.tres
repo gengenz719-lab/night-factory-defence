@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/weapon_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"weapon_rifle"
+display_name_key = &"weapon.rifle.name"
+description_key = &"weapon.rifle.description"
+tags = Array[StringName]([&"weapon", &"rifle"])
+damage_per_shot = 15.0
+shots_per_second = 4.0
+magazine_size = 24
+reload_seconds = 1.8
+projectile_speed_px = 860.0
+projectile_lifetime_seconds = 2.2
+projectile_hit_radius_px = 25.0
