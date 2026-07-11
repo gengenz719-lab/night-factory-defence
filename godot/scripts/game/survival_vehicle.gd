@@ -1,9 +1,6 @@
 class_name SurvivalVehicle
 extends Node2D
 
-signal destroyed
-signal values_changed
-
 const VEHICLE_TEXTURE: Texture2D = preload("res://assets/art/vehicle/survival_vehicle.png")
 const LEFT_X: float = 360.0
 const RIGHT_X: float = 1240.0
@@ -15,14 +12,7 @@ const ROOF_FLOOR_Y: float = 300.0
 const LADDER_X: float = 800.0
 const REPAIR_CONSOLE: Vector2 = Vector2(600, 610)
 
-var definition: VehicleDefinition
-var max_hull: float = 0.0
-var hull: float = 0.0
-var max_section_hp: Dictionary = {}
-var section_hp: Dictionary = {}
-var supplies: float = 0.0
-var repair_multiplier: float = 1.0
-var _repair_supply_progress: float = 0.0
+var state: VehicleState
 var _damage_flash: float = 0.0
 var _vehicle_sprite: Sprite2D
 
@@ -35,21 +25,11 @@ func _ready() -> void:
 	_vehicle_sprite.scale = Vector2(0.62, 0.62)
 	_vehicle_sprite.z_index = -1
 	add_child(_vehicle_sprite)
+
+
+func setup(vehicle_state: VehicleState) -> void:
+	state = vehicle_state
 	queue_redraw()
-
-
-func setup(vehicle_data: VehicleDefinition) -> void:
-	definition = vehicle_data
-	max_hull = definition.hull_hp
-	hull = max_hull
-	max_section_hp = {
-		&"front": definition.front_armor_hp,
-		&"rear": definition.rear_armor_hp,
-		&"roof": definition.roof_armor_hp,
-		&"lower": definition.lower_armor_hp,
-	}
-	section_hp = max_section_hp.duplicate()
-	supplies = definition.initial_supplies
 
 
 func _process(delta: float) -> void:
@@ -58,90 +38,24 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+func flash_damage() -> void:
+	_damage_flash = 0.12
+
+
 func floor_y(level: int) -> float:
 	match level:
-		1:
-			return UPPER_FLOOR_Y
-		2:
-			return ROOF_FLOOR_Y
-		_:
-			return LOWER_FLOOR_Y
-
-
-func is_breached(section: StringName) -> bool:
-	return float(section_hp.get(section, 0.0)) <= 0.0
-
-
-func take_attack(section: StringName, amount: float) -> void:
-	if hull <= 0.0:
-		return
-	var remaining: float = amount
-	var current_section: float = float(section_hp.get(section, 0.0))
-	if current_section > 0.0:
-		var absorbed: float = minf(current_section, remaining)
-		section_hp[section] = current_section - absorbed
-		remaining -= absorbed
-	if remaining > 0.0:
-		hull = maxf(0.0, hull - remaining)
-	_damage_flash = 0.12
-	values_changed.emit()
-	if hull <= 0.0:
-		destroyed.emit()
-
-
-func repair_at(player_position: Vector2, delta: float, player_multiplier: float) -> bool:
-	if player_position.distance_to(REPAIR_CONSOLE) > definition.repair_interaction_range_px or supplies < 1.0:
-		return false
-	var target: StringName = _lowest_damaged_section()
-	var heal_per_second: float = definition.repair_hp_per_second * repair_multiplier * player_multiplier
-	var heal: float = heal_per_second * delta
-	if target != &"":
-		section_hp[target] = minf(float(max_section_hp[target]), float(section_hp[target]) + heal)
-	elif hull < max_hull:
-		hull = minf(max_hull, hull + heal * definition.hull_hp_per_supply / definition.exterior_hp_per_supply)
-	else:
-		return false
-
-	_repair_supply_progress += heal / definition.exterior_hp_per_supply
-	while _repair_supply_progress >= 1.0 and supplies >= 1.0:
-		_repair_supply_progress -= 1.0
-		supplies -= 1.0
-	values_changed.emit()
-	return true
-
-
-func apply_relic(relic: RelicDefinition) -> void:
-	for key: StringName in max_section_hp:
-		var old_max: float = float(max_section_hp[key])
-		max_section_hp[key] = old_max * relic.exterior_hp_multiplier
-		if relic.heal_exterior_increase:
-			section_hp[key] = minf(float(max_section_hp[key]), float(section_hp[key]) + float(max_section_hp[key]) - old_max)
-	values_changed.emit()
-
-
-func _lowest_damaged_section() -> StringName:
-	var result: StringName = &""
-	var lowest_ratio: float = 1.01
-	for key: StringName in max_section_hp:
-		var ratio: float = float(section_hp[key]) / float(max_section_hp[key])
-		if ratio < 1.0 and ratio < lowest_ratio:
-			lowest_ratio = ratio
-			result = key
-	return result
-
-
-func section_ratio(section: StringName) -> float:
-	return float(section_hp.get(section, 0.0)) / float(max_section_hp.get(section, 1.0))
+		1: return UPPER_FLOOR_Y
+		2: return ROOF_FLOOR_Y
+		_: return LOWER_FLOOR_Y
 
 
 func _draw() -> void:
-	# 方向別外装の状態色
-	_draw_section_bar(Vector2(LEFT_X - 32, 320), Vector2(12, 170), section_ratio(&"front"))
-	_draw_section_bar(Vector2(RIGHT_X + 20, 320), Vector2(12, 170), section_ratio(&"rear"))
-	_draw_section_bar(Vector2(650, TOP_Y - 22), Vector2(300, 10), section_ratio(&"roof"))
-	_draw_section_bar(Vector2(650, BOTTOM_Y + 8), Vector2(300, 10), section_ratio(&"lower"))
-
-	# 修理可能地点の表示
+	if state == null:
+		return
+	_draw_section_bar(Vector2(LEFT_X - 32, 320), Vector2(12, 170), state.section_ratio(&"front"))
+	_draw_section_bar(Vector2(RIGHT_X + 20, 320), Vector2(12, 170), state.section_ratio(&"rear"))
+	_draw_section_bar(Vector2(650, TOP_Y - 22), Vector2(300, 10), state.section_ratio(&"roof"))
+	_draw_section_bar(Vector2(650, BOTTOM_Y + 8), Vector2(300, 10), state.section_ratio(&"lower"))
 	draw_arc(REPAIR_CONSOLE, 24.0, 0.0, TAU, 24, Color("#78f0d2"), 2.0)
 
 
