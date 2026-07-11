@@ -89,6 +89,23 @@ func section_ratio(section: StringName) -> float:
 	return float(section_hp.get(section, 0.0)) / float(max_section_hp.get(section, 1.0))
 
 
+func apply_network_snapshot(
+	authoritative_hull: float,
+	front_hp: float,
+	rear_hp: float,
+	roof_hp: float,
+	lower_hp: float,
+	authoritative_supplies: float
+) -> void:
+	hull = clampf(authoritative_hull, 0.0, max_hull)
+	section_hp[&"front"] = clampf(front_hp, 0.0, float(max_section_hp[&"front"]))
+	section_hp[&"rear"] = clampf(rear_hp, 0.0, float(max_section_hp[&"rear"]))
+	section_hp[&"roof"] = clampf(roof_hp, 0.0, float(max_section_hp[&"roof"]))
+	section_hp[&"lower"] = clampf(lower_hp, 0.0, float(max_section_hp[&"lower"]))
+	supplies = maxf(0.0, authoritative_supplies)
+	values_changed.emit()
+
+
 func _lowest_damaged_section() -> StringName:
 	var result: StringName = &""
 	var lowest_ratio: float = 1.01

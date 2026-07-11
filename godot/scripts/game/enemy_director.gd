@@ -2,6 +2,8 @@ class_name EnemyDirector
 extends Node2D
 
 signal enemy_defeated
+signal enemy_spawned(enemy: EnemyUnit)
+signal enemy_removed(enemy_net_id: int)
 
 const EnemyScript := preload("res://scripts/game/enemy_unit.gd")
 
@@ -13,6 +15,8 @@ var remaining_budget: int = 0
 var spawn_time: float = 0.0
 var wave_elapsed: float = 0.0
 var active: bool = false
+var authoritative: bool = true
+var _next_net_id: int = 1
 
 
 func setup(vehicle_state: VehicleState, crew: CrewPlayer, random_stream: RandomNumberGenerator) -> void:
@@ -22,7 +26,7 @@ func setup(vehicle_state: VehicleState, crew: CrewPlayer, random_stream: RandomN
 
 
 func _process(delta: float) -> void:
-	if not active or current_wave == null:
+	if not authoritative or not active or current_wave == null:
 		return
 	wave_elapsed += delta
 	spawn_time -= delta
@@ -57,7 +61,10 @@ func spawn_enemy() -> EnemyUnit:
 	var enemy := EnemyScript.new() as EnemyUnit
 	add_child(enemy)
 	enemy.setup(definition, side, vehicle, player)
+	enemy.net_id = _next_net_id
+	_next_net_id += 1
 	enemy.died.connect(_on_enemy_died)
+	enemy_spawned.emit(enemy)
 	return enemy
 
 
@@ -67,6 +74,31 @@ func spawn_test_enemy(definition: EnemyDefinition) -> EnemyUnit:
 	enemy.setup(definition, -1, vehicle, player)
 	enemy.died.connect(_on_enemy_died)
 	return enemy
+
+
+func spawn_network_replica(enemy_net_id: int, enemy_id: StringName, spawn_side: int) -> EnemyUnit:
+	var existing: EnemyUnit = find_enemy(enemy_net_id)
+	if existing != null:
+		return existing
+	var enemy := EnemyScript.new() as EnemyUnit
+	add_child(enemy)
+	enemy.setup(GameCatalog.get_definition(enemy_id) as EnemyDefinition, spawn_side, vehicle, player)
+	enemy.configure_network_replica(enemy_net_id)
+	return enemy
+
+
+func find_enemy(enemy_net_id: int) -> EnemyUnit:
+	for child: Node in get_children():
+		var enemy := child as EnemyUnit
+		if enemy != null and enemy.net_id == enemy_net_id:
+			return enemy
+	return null
+
+
+func remove_network_replica(enemy_net_id: int) -> void:
+	var enemy: EnemyUnit = find_enemy(enemy_net_id)
+	if enemy != null:
+		enemy.queue_free()
 
 
 func clear_enemies() -> void:
@@ -102,5 +134,6 @@ func _select_affordable_enemy() -> EnemyDefinition:
 	return candidates.back()
 
 
-func _on_enemy_died(_enemy: EnemyUnit) -> void:
+func _on_enemy_died(enemy: EnemyUnit) -> void:
 	enemy_defeated.emit()
+	enemy_removed.emit(enemy.net_id)

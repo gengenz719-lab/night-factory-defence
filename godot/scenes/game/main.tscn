@@ -1,32 +1,14 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=2 format=3]
 
-[ext_resource path="res://scripts/game/run_coordinator.gd" type="Script" id="1_root"]
-[ext_resource path="res://scripts/game/stage_director.gd" type="Script" id="2_stage"]
-[ext_resource path="res://scripts/game/enemy_director.gd" type="Script" id="3_enemy"]
-[ext_resource path="res://scripts/game/vehicle_state.gd" type="Script" id="4_vehicle"]
-[ext_resource path="res://scripts/game/reward_system.gd" type="Script" id="5_reward"]
-[ext_resource path="res://scripts/game/survival_vehicle.gd" type="Script" id="6_visual"]
+[ext_resource path="res://scripts/ui/lobby_controller.gd" type="Script" id="1_lobby"]
 
-[node name="Run" type="Node2D"]
-script = ExtResource("1_root")
+[node name="Main" type="Node"]
 
-[node name="StageDirector" type="Node" parent="."]
-script = ExtResource("2_stage")
-
-[node name="VehicleState" type="Node" parent="."]
-script = ExtResource("4_vehicle")
-
-[node name="Vehicle" type="Node2D" parent="VehicleState"]
-script = ExtResource("6_visual")
-
-[node name="EnemyDirector" type="Node2D" parent="."]
-script = ExtResource("3_enemy")
-
-[node name="RewardSystem" type="Node" parent="."]
-script = ExtResource("5_reward")
-
-[node name="ParallaxWorld" type="Node2D" parent="."]
-
-[node name="Projectiles" type="Node2D" parent="."]
-
-[node name="Players" type="Node2D" parent="."]
+[node name="Lobby" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lobby")

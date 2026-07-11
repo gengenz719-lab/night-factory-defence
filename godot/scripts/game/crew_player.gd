@@ -29,6 +29,9 @@ var _is_repairing: bool = false
 var aim_position: Vector2 = Vector2.RIGHT
 var _body_sprite: Sprite2D
 var _weapon_sprite: Sprite2D
+var network_controlled: bool = false
+var peer_id: int = 1
+var replica_target_position: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -65,6 +68,12 @@ func _physics_process(delta: float) -> void:
 	fire_cooldown = maxf(0.0, fire_cooldown - delta)
 	invulnerable_time = maxf(0.0, invulnerable_time - delta)
 	aim_position = get_global_mouse_position()
+	if network_controlled:
+		if peer_id != NetworkSession.local_peer_id():
+			position = position.lerp(replica_target_position, minf(1.0, delta / 0.1))
+		_update_visuals()
+		queue_redraw()
+		return
 
 	if is_downed:
 		downed_time -= delta
@@ -146,6 +155,63 @@ func _handle_actions(delta: float) -> void:
 		if direction.length_squared() > 0.1:
 			shoot_requested.emit(position + direction * 38.0, direction, weapon_definition.damage_per_shot * damage_multiplier)
 			fire_cooldown = 1.0 / weapon_definition.shots_per_second
+
+
+func apply_network_input(axis: Vector2, aim: Vector2, delta: float, wants_repair: bool) -> void:
+	if is_downed or not controls_enabled:
+		return
+	var safe_axis: Vector2 = axis.limit_length(1.0)
+	if _climb_target_level >= 0:
+		_handle_climbing(delta)
+	else:
+		position.x += safe_axis.x * definition.move_speed_cells_per_second * CELL_SIZE_PX * delta
+		_handle_network_vertical(safe_axis.y, delta)
+	position.x = clampf(position.x, SurvivalVehicle.LEFT_X + 18.0, SurvivalVehicle.RIGHT_X - 18.0)
+	aim_position = position + (aim.normalized() if aim.length_squared() > 0.001 else Vector2.RIGHT) * 200.0
+	_is_repairing = wants_repair and vehicle.repair_at(position, delta, repair_multiplier)
+
+
+func _handle_network_vertical(vertical_axis: float, delta: float) -> void:
+	if vertical_axis < -0.5 and on_floor:
+		if absf(position.x - SurvivalVehicle.LADDER_X) < 54.0 and current_level < 2:
+			_climb_target_level = current_level + 1
+			on_floor = false
+		else:
+			vertical_velocity = -sqrt(2.0 * definition.gravity_px * definition.jump_height_cells * CELL_SIZE_PX)
+			on_floor = false
+	elif vertical_axis > 0.5 and on_floor and absf(position.x - SurvivalVehicle.LADDER_X) < 54.0 and current_level > 0:
+		_climb_target_level = current_level - 1
+		on_floor = false
+	if not on_floor and _climb_target_level < 0:
+		vertical_velocity += definition.gravity_px * delta
+		position.y += vertical_velocity * delta
+		var floor_center: float = vehicle.floor_y(current_level) - HALF_HEIGHT
+		if vertical_velocity >= 0.0 and position.y >= floor_center:
+			position.y = floor_center
+			vertical_velocity = 0.0
+			on_floor = true
+
+
+func apply_prediction_motion(axis: Vector2, delta: float) -> void:
+	position.x += axis.limit_length(1.0).x * definition.move_speed_cells_per_second * CELL_SIZE_PX * delta
+	position.x = clampf(position.x, SurvivalVehicle.LEFT_X + 18.0, SurvivalVehicle.RIGHT_X - 18.0)
+
+
+func consume_fire_request() -> bool:
+	if fire_cooldown > 0.0 or is_downed or not controls_enabled or _is_repairing:
+		return false
+	fire_cooldown = 1.0 / weapon_definition.shots_per_second
+	return true
+
+
+func apply_network_snapshot(authoritative_position: Vector2, aim: Vector2, health: float, downed: bool) -> void:
+	hp = clampf(health, 0.0, max_hp)
+	is_downed = downed
+	aim_position = authoritative_position + aim.normalized() * 200.0
+	if peer_id == NetworkSession.local_peer_id():
+		position = authoritative_position
+	else:
+		replica_target_position = authoritative_position
 
 
 func take_damage(amount: float) -> void:

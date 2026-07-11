@@ -23,6 +23,9 @@ var active: bool = true
 var inside_vehicle: bool = false
 var _hit_flash: float = 0.0
 var _sprite: Sprite2D
+var net_id: int = 0
+var replica_target_position: Vector2 = Vector2.ZERO
+var is_network_replica: bool = false
 
 
 func _ready() -> void:
@@ -54,6 +57,10 @@ func setup(enemy_data: EnemyDefinition, spawn_side: int, target_vehicle: Vehicle
 
 
 func _process(delta: float) -> void:
+	if is_network_replica:
+		position = position.lerp(replica_target_position, minf(1.0, delta / 0.1))
+		queue_redraw()
+		return
 	if not active or vehicle == null or player == null:
 		return
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
@@ -88,6 +95,8 @@ func _process(delta: float) -> void:
 
 
 func take_damage(amount: float) -> void:
+	if is_network_replica:
+		return
 	if hp <= 0.0:
 		return
 	hp -= amount
@@ -97,6 +106,19 @@ func take_damage(amount: float) -> void:
 		queue_free()
 	else:
 		queue_redraw()
+
+
+func configure_network_replica(enemy_net_id: int) -> void:
+	net_id = enemy_net_id
+	is_network_replica = true
+	active = false
+	replica_target_position = position
+
+
+func apply_network_snapshot(target_position: Vector2, health: float, entered_vehicle: bool) -> void:
+	replica_target_position = target_position
+	hp = health
+	inside_vehicle = entered_vehicle
 
 
 func _draw() -> void:

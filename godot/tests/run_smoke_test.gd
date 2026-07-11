@@ -3,7 +3,7 @@ extends RefCounted
 
 const CatalogFixtureScript := preload("res://tests/catalog_fixture_definition.gd")
 const REQUIRED_RUN_NODES: Array[String] = [
-	"StageDirector", "EnemyDirector", "VehicleState", "RewardSystem",
+	"StageDirector", "EnemyDirector", "VehicleState", "RewardSystem", "NetStateReplicator",
 ]
 const REQUIRED_INPUT_ACTIONS: Array[StringName] = [
 	&"move_left", &"move_right", &"jump", &"drop_down", &"aim",
@@ -26,6 +26,9 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	coordinator.stage_director.begin_combat()
 	if coordinator.stage_director.state != StageDirector.RunState.COMBAT:
 		failures.append("combat did not start")
+	coordinator.player.apply_network_input(Vector2.UP, Vector2.RIGHT, 1.0 / 30.0, false)
+	if coordinator.player.on_floor:
+		failures.append("network jump intent was not applied by authority")
 	var budget_before: int = coordinator.enemy_director.remaining_budget
 	var enemy: EnemyUnit = coordinator.enemy_director.spawn_enemy()
 	await coordinator.get_tree().process_frame
@@ -92,6 +95,8 @@ func _test_catalog(failures: Array[String]) -> void:
 
 
 func _test_foundation_configuration(coordinator: RunCoordinator, failures: Array[String]) -> void:
+	if NetworkSession.role != NetworkSession.SessionRole.SOLO or NetworkSession.local_peer_id() != NetworkSession.HOST_PEER_ID:
+		failures.append("solo did not use the offline multiplayer path")
 	for node_name: String in REQUIRED_RUN_NODES:
 		if coordinator.get_node_or_null(node_name) == null:
 			failures.append("run-owned system missing: %s" % node_name)
