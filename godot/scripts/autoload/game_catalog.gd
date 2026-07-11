@@ -10,6 +10,10 @@ const DEFINITION_PATHS: PackedStringArray = [
 	"res://data/enemies/enemy_runner.tres",
 	"res://data/enemies/enemy_climber.tres",
 	"res://data/modules/vehicle_survival.tres",
+	"res://data/modules/module_generator.tres",
+	"res://data/modules/module_firing_port.tres",
+	"res://data/modules/module_turret.tres",
+	"res://data/modules/module_workbench.tres",
 	"res://data/relics/relic_heavy_rounds.tres",
 	"res://data/relics/relic_plating.tres",
 	"res://data/relics/relic_comfort.tres",
@@ -82,6 +86,16 @@ func validate_definitions(definitions: Array[GameDefinition]) -> PackedStringArr
 				total_weight += weight
 			if not is_equal_approx(total_weight, 1.0):
 				errors.append("Wave比率不正: %s = %.3f" % [wave.id, total_weight])
+		elif definition is ModuleDefinition:
+			var module := definition as ModuleDefinition
+			if module.grid_size not in [Vector2i(1, 1), Vector2i(2, 1), Vector2i(2, 2)]:
+				errors.append("モジュールサイズ不正: %s" % module.id)
+			if module.max_hp <= 0.0 or module.power_generation < 0 or module.power_consumption < 0:
+				errors.append("モジュール数値不正: %s" % module.id)
+		elif definition is VehicleDefinition:
+			var vehicle := definition as VehicleDefinition
+			if vehicle.initial_module_ids.size() != vehicle.initial_module_positions.size():
+				errors.append("初期モジュール配置不正: %s" % vehicle.id)
 	return errors
 
 
@@ -112,12 +126,13 @@ func _validate_category_coverage(definitions: Array[GameDefinition]) -> PackedSt
 	var errors := PackedStringArray()
 	var counts: Dictionary[StringName, int] = {
 		&"character": 0, &"enemy": 0, &"vehicle": 0,
-		&"relic": 0, &"wave": 0, &"weapon": 0,
+		&"module": 0, &"relic": 0, &"wave": 0, &"weapon": 0,
 	}
 	for definition: GameDefinition in definitions:
 		if definition is CharacterDefinition: counts[&"character"] += 1
 		elif definition is EnemyDefinition: counts[&"enemy"] += 1
 		elif definition is VehicleDefinition: counts[&"vehicle"] += 1
+		elif definition is ModuleDefinition: counts[&"module"] += 1
 		elif definition is RelicDefinition: counts[&"relic"] += 1
 		elif definition is WaveDefinition: counts[&"wave"] += 1
 		elif definition is WeaponDefinition: counts[&"weapon"] += 1

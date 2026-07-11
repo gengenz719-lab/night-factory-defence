@@ -57,6 +57,27 @@ func _draw() -> void:
 	_draw_section_bar(Vector2(650, TOP_Y - 22), Vector2(300, 10), state.section_ratio(&"roof"))
 	_draw_section_bar(Vector2(650, BOTTOM_Y + 8), Vector2(300, 10), state.section_ratio(&"lower"))
 	draw_arc(REPAIR_CONSOLE, 24.0, 0.0, TAU, 24, Color("#78f0d2"), 2.0)
+	_draw_modules()
+
+
+func _draw_modules() -> void:
+	if state.module_system == null:
+		return
+	for module: VehicleModuleState in state.module_system.modules.values():
+		var top_left: Vector2 = VehicleModuleSystem.GRID_ORIGIN + Vector2(module.grid_position) * VehicleModuleSystem.CELL_SIZE_PX
+		var size: Vector2 = Vector2(module.definition.grid_size) * VehicleModuleSystem.CELL_SIZE_PX
+		var color: Color = Color("#3c8d80") if module.powered else Color("#6a6060")
+		if module.hp <= 0.0:
+			color = Color("#8f3030")
+		draw_rect(Rect2(top_left + Vector2(2, 2), size - Vector2(4, 4)), Color(color, 0.72), true)
+		draw_rect(Rect2(top_left + Vector2(2, 2), size - Vector2(4, 4)), Color("#d5e2df"), false, 2.0)
+		var label: String = {&"module_generator": "GEN", &"module_firing_port": "PORT", &"module_turret": "TURRET", &"module_workbench": "WORK"}.get(module.definition.id, "MOD")
+		var status: String = "ON" if module.powered else "OFF"
+		if module.overheated:
+			status = "OVERHEAT"
+		draw_string(ThemeDB.fallback_font, top_left + Vector2(6, 20), "%s %s" % [label, status], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
+		if module.definition.id == &"module_turret":
+			draw_string(ThemeDB.fallback_font, top_left + Vector2(6, 38), "HEAT %.0f" % module.heat, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
 
 
 func _draw_section_bar(pos: Vector2, size: Vector2, ratio: float) -> void:

@@ -5,6 +5,7 @@ const CatalogFixtureScript := preload("res://tests/catalog_fixture_definition.gd
 const REQUIRED_RUN_NODES: Array[String] = [
 	"StageDirector", "EnemyDirector", "VehicleState", "RewardSystem",
 	"NetStateReplicator", "PlayerNetReplicator", "ReviveController",
+	"VehicleModuleSystem", "ModuleNetReplicator",
 ]
 const REQUIRED_INPUT_ACTIONS: Array[StringName] = [
 	&"move_left", &"move_right", &"jump", &"drop_down", &"aim",
@@ -23,6 +24,7 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	_test_catalog(failures)
 	_test_deterministic_rewards(failures)
 	_test_foundation_configuration(coordinator, failures)
+	_test_modules(coordinator, failures)
 	_test_characters(coordinator, failures)
 	_test_player_survival(coordinator.player, failures)
 
@@ -40,6 +42,11 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	elif coordinator.enemy_director.remaining_budget < 0:
 		failures.append("threat budget became negative")
 	else:
+		enemy.position = Vector2(700.0, 600.0)
+		var turret_shots_before: int = coordinator.module_system.turret_shots
+		coordinator.module_system.authority_tick(0.6)
+		if coordinator.module_system.turret_shots <= turret_shots_before:
+			failures.append("powered turret did not acquire and fire")
 		enemy.take_damage(9999.0)
 		await coordinator.get_tree().process_frame
 		if coordinator.reward_system.kills != 1:
@@ -54,14 +61,15 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	await coordinator.get_tree().process_frame
 
 	var front_before: float = float(coordinator.vehicle_state.section_hp[&"front"])
-	coordinator.vehicle_state.take_attack(&"front", 50.0)
-	if not is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), front_before - 50.0):
+	coordinator.vehicle_state.take_attack(&"front", 160.0)
+	if not is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), front_before - 160.0):
 		failures.append("vehicle damage mismatch")
 	coordinator.player.position = SurvivalVehicle.REPAIR_CONSOLE
 	for _step: int in range(30):
 		coordinator.vehicle_state.repair_at(coordinator.player.position, 0.1, 1.0)
-	if float(coordinator.vehicle_state.section_hp[&"front"]) <= front_before - 50.0:
-		failures.append("vehicle repair did not restore damage")
+	var combat_cap: float = float(coordinator.vehicle_state.max_section_hp[&"front"]) * coordinator.vehicle_state.definition.combat_repair_cap_ratio
+	if not is_equal_approx(float(coordinator.vehicle_state.section_hp[&"front"]), combat_cap):
+		failures.append("combat repair did not stop at 60 percent")
 
 	coordinator.stage_director.finish_wave()
 	if coordinator.stage_director.state != StageDirector.RunState.REWARD:
@@ -71,6 +79,10 @@ func run(coordinator: RunCoordinator) -> Array[String]:
 	coordinator.select_relic(plating_index)
 	if coordinator.stage_director.wave_number() != 2 or float(coordinator.vehicle_state.max_section_hp[&"front"]) <= old_front_max:
 		failures.append("relic application mismatch")
+	for _step: int in range(70):
+		coordinator.vehicle_state.repair_at(coordinator.player.position, 0.1, 1.0)
+	if float(coordinator.vehicle_state.section_hp[&"front"]) < float(coordinator.vehicle_state.max_section_hp[&"front"]) - 0.1:
+		failures.append("prepare repair did not reach 100 percent")
 
 	coordinator.stage_director.begin_combat()
 	coordinator.stage_director.finish_wave()
@@ -126,6 +138,44 @@ func _test_catalog(failures: Array[String]) -> void:
 	var invalid_definitions: Array[GameDefinition] = [empty, duplicate_a, duplicate_b, missing]
 	if GameCatalog.validate_definitions(invalid_definitions).size() != 3:
 		failures.append("catalog validation coverage mismatch")
+
+
+func _test_modules(coordinator: RunCoordinator, failures: Array[String]) -> void:
+	var system: VehicleModuleSystem = coordinator.module_system
+	for module_id: StringName in [&"module_generator", &"module_firing_port", &"module_turret", &"module_workbench"]:
+		if GameCatalog.get_definition(module_id) is not ModuleDefinition:
+			failures.append("module definition missing: %s" % module_id)
+	if system.modules.size() != 4 or system.power_generated != 6 or system.power_requested != 1:
+		failures.append("initial module layout or power mismatch")
+	var workbench_definition := GameCatalog.get_definition(&"module_workbench") as ModuleDefinition
+	if not system.validate_placement(workbench_definition, Vector2i(system.vehicle_definition.ladder_column, 1)).contains("はしご"):
+		failures.append("ladder blocking placement was not rejected")
+	var passage_test := VehicleModuleSystem.new()
+	passage_test.setup(system.vehicle_definition, null)
+	for x_value: int in [1, 2, 3, 4]:
+		passage_test.place_confirmed(passage_test.next_instance_id, &"module_firing_port", Vector2i(x_value, 1), false)
+	var firing_port := GameCatalog.get_definition(&"module_firing_port") as ModuleDefinition
+	if not passage_test.validate_placement(firing_port, Vector2i(6, 1)).contains("通路"):
+		failures.append("last passage cell placement was not rejected")
+	passage_test.free()
+	var first_turret_id: int = system.request_place(&"module_turret", Vector2i(2, 0))
+	if first_turret_id <= 0:
+		failures.append("turret placement failed")
+		return
+	var second_turret: VehicleModuleState = system.place_confirmed(system.next_instance_id, &"module_turret", Vector2i(4, 0), false)
+	var workbench: VehicleModuleState = system.active_workbench()
+	system.set_priority(workbench.instance_id, 3)
+	system.set_priority(first_turret_id, 2)
+	system.set_priority(second_turret.instance_id, 1)
+	if not (workbench.powered and (system.modules[first_turret_id] as VehicleModuleState).powered and not second_turret.powered):
+		failures.append("power shortage did not stop lowest priority module")
+	var turret: VehicleModuleState = system.modules[first_turret_id]
+	turret.heat = turret.definition.heat_limit
+	turret.overheated = true
+	turret.overheat_time = turret.definition.overheat_stop_seconds
+	system.authority_tick(3.4)
+	if turret.overheated or turret.heat > turret.definition.overheat_recovery_heat:
+		failures.append("turret did not recover after forced cooling")
 
 
 func _test_characters(coordinator: RunCoordinator, failures: Array[String]) -> void:

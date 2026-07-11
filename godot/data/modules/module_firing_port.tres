@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ModuleDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/module_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"module_firing_port"
+display_name_key = &"module.firing_port.name"
+description_key = &"module.firing_port.description"
+tags = Array[StringName]([&"module", &"exterior"])
+fallback_display_name = "射撃窓"
+fallback_description = "車内から安全に外へ射撃できる"
+placement_zone = "side_exterior"
+grid_size = Vector2i(1, 1)
+scrap_cost = 25
+max_hp = 160.0
+default_priority = 3

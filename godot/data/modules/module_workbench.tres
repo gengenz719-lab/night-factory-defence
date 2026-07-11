@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ModuleDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/module_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"module_workbench"
+display_name_key = &"module.workbench.name"
+description_key = &"module.workbench.description"
+tags = Array[StringName]([&"module", &"support"])
+fallback_display_name = "工作台"
+fallback_description = "修理速度+25%、Wave間修理効率+20%"
+placement_zone = "interior"
+grid_size = Vector2i(2, 1)
+scrap_cost = 65
+max_hp = 130.0
+power_consumption = 1
+default_priority = 2
+repair_speed_multiplier = 1.25
+repair_efficiency_multiplier = 1.2

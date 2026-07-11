@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ModuleDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/module_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"module_turret"
+display_name_key = &"module.turret.name"
+description_key = &"module.turret.description"
+tags = Array[StringName]([&"module", &"exterior", &"turret"])
+fallback_display_name = "自動タレット"
+fallback_description = "敵を自動射撃。熱100で強制冷却"
+placement_zone = "roof_exterior"
+grid_size = Vector2i(2, 1)
+scrap_cost = 90
+max_hp = 130.0
+power_consumption = 3
+default_priority = 1
+turret_damage = 12.0
+turret_shots_per_second = 2.0
+turret_range_cells = 7.0
+heat_per_shot = 8.0
+heat_limit = 100.0
+heat_cool_per_second = 15.0
+overheat_stop_seconds = 3.0
+overheat_recovery_heat = 50.0
