@@ -147,6 +147,9 @@ Autoloadは次の5つまでを初期上限とする。
 - 射撃/命中など短命イベント: authority, unreliable ordered、channel 3。
 - 画面遷移、投票確定、車両改装、報酬: authority/reliable、channel 0。
 - 接続時の初期状態: authority/reliable、channel 0。
+- 送信方向を固定する: クライアントの射撃要求は「入力意図」としてchannel 1で送り、
+  ホストの射撃・命中通知はchannel 3で配信する。channel 0 reliableへ載せない
+  (2026-07-11 Spike B結果より明記)。
 - RPC関数をResourceへ定義せず、Nodeに置く。
 - RPCペイロードへNodeやResourceそのものを渡さず、IDとプリミティブ値を渡す。
 
@@ -163,6 +166,8 @@ Autoloadは次の5つまでを初期上限とする。
 
 - 補間表示は100msを初期バッファとする。
 - 150ms RTT、パケット損失2%でも射撃と移動が継続できることを通信スパイクの合格条件にする。
+- 通信テストの記録指標: 最終状態ハッシュ一致、予測再適用後の平均・最大補正px、
+  アプリpayload概算kbps(2026-07-11 Spike B結果より追加。ヘッダー・再送を含まない概算である点も記録する)。
 
 ## 9. 乱数
 
@@ -308,13 +313,17 @@ ready_toggle
 - 2キャラクターが同じ画面で移動
 - モジュールを置いても通路検証が働く
 
-### Spike B: ネットワーク
+### Spike B: ネットワーク — ✅ 合格(2026-07-11)
 
 - ホスト+クライアント1台
 - 150ms RTT、2%損失を模した条件
 - 移動予測、補正、射撃、命中、敵10体
 - reliableとunreliableを別channelで使用
 - 10分間、切断や状態不一致なく動作
+
+結果: 600秒で切断0・最終状態ハッシュ一致・平均補正3.6px・約58kbps。
+詳細と「本実装へ持ち込む判断/持ち込まないもの」は `godot-spikes/spike_b_net/README.md`。
+残課題(実回線・3〜4人・再接続等)は同README参照。
 
 ### Spike C: 表示負荷
 
