@@ -2,6 +2,7 @@ class_name GameHUD
 extends CanvasLayer
 
 signal relic_selected(index: int)
+signal route_selected(index: int)
 
 var root_control: Control
 var player_label: Label
@@ -13,6 +14,7 @@ var overlay: ColorRect
 var overlay_title: Label
 var overlay_cards: HBoxContainer
 var end_label: Label
+var selection_mode: StringName = &"none"
 
 
 func _ready() -> void:
@@ -152,8 +154,9 @@ func update_team_status(players_by_peer: Dictionary, local_peer_id: int, kills: 
 
 func show_relic_choices(choices: Array[RelicDefinition]) -> void:
 	overlay.visible = true
-	overlay_title.text = "WAVE CLEAR － 共有レリックを選択"
-	end_label.text = "クリック、または数字キー 1 / 2 / 3"
+	selection_mode = &"relic"
+	overlay_title.text = "WAVE CLEAR － 共有レリック投票"
+	end_label.text = "投票: クリック、または数字キー 1 / 2 / 3"
 	for child: Node in overlay_cards.get_children():
 		child.queue_free()
 	for index: int in range(choices.size()):
@@ -175,8 +178,44 @@ func show_relic_choices(choices: Array[RelicDefinition]) -> void:
 		overlay_cards.add_child(button)
 
 
+func show_route_choices(choices: Array[RouteNodeDefinition]) -> void:
+	overlay.visible = true
+	selection_mode = &"route"
+	overlay_title.text = "NEXT WAVE － 2択ルート投票"
+	end_label.text = "投票: クリック、または数字キー 1 / 2"
+	for child: Node in overlay_cards.get_children():
+		child.queue_free()
+	for index: int in choices.size():
+		var route: RouteNodeDefinition = choices[index]
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(500, 300)
+		button.text = "%d\n%s\n\n脅威: %s / 主力: %s\n危険: %s\n報酬: %s\n\n%s" % [
+			index + 1, route.fallback_display_name, route.threat_label,
+			route.primary_enemy_id, route.danger_text, route.reward_text,
+			route.fallback_description,
+		]
+		button.add_theme_font_size_override(&"font_size", 21)
+		var normal := StyleBoxFlat.new()
+		normal.bg_color = Color("#36566d" if route.node_type == &"road" else "#76533e", 0.82)
+		normal.border_color = Color("#e2d3ad")
+		normal.set_border_width_all(3)
+		normal.corner_radius_top_left = 12
+		normal.corner_radius_top_right = 12
+		normal.corner_radius_bottom_left = 12
+		normal.corner_radius_bottom_right = 12
+		button.add_theme_stylebox_override(&"normal", normal)
+		button.pressed.connect(_on_route_button.bind(index))
+		overlay_cards.add_child(button)
+
+
+func update_vote_status(count_text: String, time_left: float) -> void:
+	if overlay.visible and selection_mode in [&"relic", &"route"]:
+		end_label.text = "%s    残り %02d秒\n選び直し可。結果はホストが確定" % [count_text, ceili(time_left)]
+
+
 func show_end(victory: bool, kills: int, relics: Array[RelicDefinition]) -> void:
 	overlay.visible = true
+	selection_mode = &"end"
 	overlay_title.text = "PROTOTYPE CLEAR" if victory else "VEHICLE DESTROYED"
 	for child: Node in overlay_cards.get_children():
 		child.queue_free()
@@ -192,24 +231,37 @@ func show_end(victory: bool, kills: int, relics: Array[RelicDefinition]) -> void
 
 func hide_overlay() -> void:
 	overlay.visible = false
+	selection_mode = &"none"
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not overlay.visible or overlay_title.text.contains("CLEAR") == false or overlay_title.text.contains("PROTOTYPE"):
+	if not overlay.visible or selection_mode not in [&"relic", &"route"]:
 		return
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_1:
-				_on_relic_button(0)
+				_on_choice_button(0)
 			KEY_2:
-				_on_relic_button(1)
+				_on_choice_button(1)
 			KEY_3:
-				_on_relic_button(2)
+				_on_choice_button(2)
 
 
 func _on_relic_button(index: int) -> void:
-	overlay.visible = false
 	relic_selected.emit(index)
+
+
+func _on_route_button(index: int) -> void:
+	route_selected.emit(index)
+
+
+func _on_choice_button(index: int) -> void:
+	if index < 0 or index >= overlay_cards.get_child_count():
+		return
+	if selection_mode == &"relic":
+		_on_relic_button(index)
+	elif selection_mode == &"route":
+		_on_route_button(index)
 
 
 func _relic_names(relics: Array[RelicDefinition]) -> PackedStringArray:

@@ -17,6 +17,9 @@ const DEFINITION_PATHS: PackedStringArray = [
 	"res://data/relics/relic_heavy_rounds.tres",
 	"res://data/relics/relic_plating.tres",
 	"res://data/relics/relic_comfort.tres",
+	"res://data/routes/route_road.tres",
+	"res://data/routes/route_salvage.tres",
+	"res://data/rules/vote_default.tres",
 	"res://data/stages/wave_01.tres",
 	"res://data/stages/wave_02.tres",
 	"res://data/weapons/weapon_rifle.tres",
@@ -96,6 +99,14 @@ func validate_definitions(definitions: Array[GameDefinition]) -> PackedStringArr
 			var vehicle := definition as VehicleDefinition
 			if vehicle.initial_module_ids.size() != vehicle.initial_module_positions.size():
 				errors.append("初期モジュール配置不正: %s" % vehicle.id)
+		elif definition is RouteNodeDefinition:
+			var route := definition as RouteNodeDefinition
+			if route.enemy_budget_multiplier <= 0.0 or route.preferred_enemy_weight_multiplier <= 0.0:
+				errors.append("ルート数値不正: %s" % route.id)
+		elif definition is VoteRulesDefinition:
+			var rules := definition as VoteRulesDefinition
+			if rules.relic_choice_count != 3 or rules.route_choice_count != 2 or rules.vote_duration_seconds <= 0.0:
+				errors.append("投票ルール不正: %s" % rules.id)
 	return errors
 
 
@@ -126,7 +137,7 @@ func _validate_category_coverage(definitions: Array[GameDefinition]) -> PackedSt
 	var errors := PackedStringArray()
 	var counts: Dictionary[StringName, int] = {
 		&"character": 0, &"enemy": 0, &"vehicle": 0,
-		&"module": 0, &"relic": 0, &"wave": 0, &"weapon": 0,
+		&"module": 0, &"relic": 0, &"route": 0, &"vote_rules": 0, &"wave": 0, &"weapon": 0,
 	}
 	for definition: GameDefinition in definitions:
 		if definition is CharacterDefinition: counts[&"character"] += 1
@@ -134,6 +145,8 @@ func _validate_category_coverage(definitions: Array[GameDefinition]) -> PackedSt
 		elif definition is VehicleDefinition: counts[&"vehicle"] += 1
 		elif definition is ModuleDefinition: counts[&"module"] += 1
 		elif definition is RelicDefinition: counts[&"relic"] += 1
+		elif definition is RouteNodeDefinition: counts[&"route"] += 1
+		elif definition is VoteRulesDefinition: counts[&"vote_rules"] += 1
 		elif definition is WaveDefinition: counts[&"wave"] += 1
 		elif definition is WeaponDefinition: counts[&"weapon"] += 1
 	for category: StringName in counts:

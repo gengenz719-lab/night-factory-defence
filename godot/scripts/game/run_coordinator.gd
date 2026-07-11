@@ -2,7 +2,6 @@ class_name RunCoordinator
 extends Node2D
 
 const DEFAULT_RUN_SEED: int = 7192026
-const RELIC_CHOICE_COUNT: int = 3
 const BackgroundScript := preload("res://scripts/game/scrolling_background.gd")
 const PlayerScript := preload("res://scripts/game/crew_player.gd")
 const ProjectileScript := preload("res://scripts/game/projectile.gd")
@@ -20,6 +19,7 @@ const BuildUiScript := preload("res://scripts/ui/vehicle_build_ui.gd")
 @onready var player_net_replicator: PlayerNetReplicator = $PlayerNetReplicator as PlayerNetReplicator
 @onready var module_system: VehicleModuleSystem = $VehicleModuleSystem as VehicleModuleSystem
 @onready var module_net_replicator: ModuleNetReplicator = $ModuleNetReplicator as ModuleNetReplicator
+@onready var vote_controller: VoteController = $VoteController as VoteController
 @onready var parallax_world: Node2D = $ParallaxWorld as Node2D
 @onready var projectiles: Node2D = $Projectiles as Node2D
 
@@ -28,8 +28,13 @@ var player: CrewPlayer
 var hud: GameHUD
 var build_ui: VehicleBuildUI
 var active_relic_choices: Array[RelicDefinition] = []
+var active_route_choices: Array[RouteNodeDefinition] = []
+var selected_route: RouteNodeDefinition
+var route_generator := RouteGenerator.new()
+var vote_rules: VoteRulesDefinition
 var players_by_peer: Dictionary = {}
 var _initialized: bool = false
+var _selected_route_reward_applied: bool = true
 
 
 func _ready() -> void:
@@ -43,6 +48,9 @@ func setup_network_run(run_seed: int) -> void:
 	random_streams.setup(run_seed)
 	var waves: Array[WaveDefinition] = _load_waves()
 	var relic_pool: Array[RelicDefinition] = _load_relics()
+	var route_pool: Array[RouteNodeDefinition] = _load_routes()
+	vote_rules = GameCatalog.get_definition(&"vote_default") as VoteRulesDefinition
+	route_generator.setup(random_streams.route, route_pool)
 	parallax_world.add_child(BackgroundScript.new())
 	var vehicle_definition := GameCatalog.get_definition(&"vehicle_survival") as VehicleDefinition
 	vehicle_state.setup(vehicle_definition)
@@ -78,6 +86,7 @@ func setup_network_run(run_seed: int) -> void:
 	enemy_director.setup(vehicle_state, host_player, random_streams.wave, players_by_peer, module_system)
 	enemy_director.authoritative = NetworkSession.is_host_authority()
 	reward_system.setup(random_streams.reward, relic_pool)
+	vote_controller.setup(self, vote_rules, random_streams.reward, random_streams.route)
 	revive_controller.setup(players_by_peer, vehicle_state)
 	_connect_systems()
 	if not NetworkSession.is_host_authority():
@@ -103,6 +112,8 @@ func _process(_delta: float) -> void:
 		player, vehicle_state, reward_system.kills, reward_system.acquired
 	)
 	hud.update_team_status(players_by_peer, NetworkSession.local_peer_id(), reward_system.kills)
+	if vote_controller.active_kind != VoteController.VoteKind.NONE:
+		hud.update_vote_status(vote_controller.vote_count_text(), vote_controller.remaining_time)
 	build_ui.refresh()
 
 
@@ -114,6 +125,8 @@ func _connect_systems() -> void:
 	enemy_director.enemy_defeated.connect(reward_system.record_enemy_defeat)
 	vehicle_state.destroyed.connect(_on_vehicle_destroyed)
 	hud.relic_selected.connect(select_relic)
+	hud.route_selected.connect(select_route)
+	vote_controller.vote_resolved.connect(_on_vote_resolved)
 
 
 func _on_prepare_started(_wave: WaveDefinition) -> void:
@@ -147,16 +160,19 @@ func _on_reward_requested() -> void:
 	module_system.combat_active = false
 	module_system.can_edit = false
 	_set_player_controls(false)
-	active_relic_choices = reward_system.prepare_choices(RELIC_CHOICE_COUNT)
+	_apply_selected_route_reward()
+	active_relic_choices = reward_system.prepare_choices(vote_rules.relic_choice_count)
 	hud.show_relic_choices(active_relic_choices)
 	net_state_replicator.broadcast_run_state()
 	net_state_replicator.broadcast_reward_choices(active_relic_choices)
+	vote_controller.start_vote(VoteController.VoteKind.RELIC, active_relic_choices.size())
 
 
 func _on_victory_requested() -> void:
 	if not NetworkSession.is_host_authority():
 		return
 	enemy_director.end_wave()
+	_apply_selected_route_reward()
 	_set_player_controls(false)
 	hud.show_end(true, reward_system.kills, reward_system.acquired)
 	net_state_replicator.broadcast_run_state()
@@ -164,15 +180,58 @@ func _on_victory_requested() -> void:
 
 
 func select_relic(index: int) -> void:
-	if not NetworkSession.is_host_authority() or index < 0 or index >= active_relic_choices.size():
+	if index < 0 or index >= active_relic_choices.size() or vote_controller.active_kind != VoteController.VoteKind.RELIC:
 		return
+	vote_controller.request_vote(index)
+
+
+func select_route(index: int) -> void:
+	if index < 0 or index >= active_route_choices.size() or vote_controller.active_kind != VoteController.VoteKind.ROUTE:
+		return
+	vote_controller.request_vote(index)
+
+
+func _on_vote_resolved(kind: VoteController.VoteKind, index: int) -> void:
+	if not NetworkSession.is_host_authority():
+		return
+	if kind == VoteController.VoteKind.RELIC:
+		_confirm_relic(index)
+		_begin_route_vote()
+	elif kind == VoteController.VoteKind.ROUTE:
+		_confirm_route(index)
+
+
+func _confirm_relic(index: int) -> void:
 	var selected: RelicDefinition = reward_system.confirm_choice(index)
 	for peer_key: Variant in players_by_peer:
 		var crew := players_by_peer[peer_key] as CrewPlayer
 		crew.apply_relic(selected)
 	vehicle_state.apply_relic(selected)
 	net_state_replicator.broadcast_relic_selected(selected.id)
+
+
+func _begin_route_vote() -> void:
+	active_route_choices = route_generator.generate_choices(vote_rules.route_choice_count)
+	hud.show_route_choices(active_route_choices)
+	net_state_replicator.broadcast_route_choices(active_route_choices)
+	vote_controller.start_vote(VoteController.VoteKind.ROUTE, active_route_choices.size())
+
+
+func _confirm_route(index: int) -> void:
+	selected_route = active_route_choices[index]
+	_selected_route_reward_applied = false
+	enemy_director.current_route = selected_route
+	net_state_replicator.broadcast_route_selected(selected_route.id)
 	stage_director.complete_reward()
+
+
+func _apply_selected_route_reward() -> void:
+	if selected_route == null or _selected_route_reward_applied:
+		return
+	module_system.scrap += selected_route.scrap_reward
+	vehicle_state.supplies += selected_route.supply_reward
+	_selected_route_reward_applied = true
+	net_state_replicator.broadcast_route_reward()
 
 
 func spawn_authoritative_projectile(shooter: CrewPlayer, direction: Vector2) -> void:
@@ -247,6 +306,19 @@ func receive_relic_selected(relic_id: StringName) -> void:
 		var crew := players_by_peer[peer_key] as CrewPlayer
 		crew.apply_relic(selected)
 	vehicle_state.apply_relic(selected)
+
+
+func receive_route_choices(first_id: String, second_id: String) -> void:
+	active_route_choices = [
+		GameCatalog.get_definition(StringName(first_id)) as RouteNodeDefinition,
+		GameCatalog.get_definition(StringName(second_id)) as RouteNodeDefinition,
+	]
+	hud.show_route_choices(active_route_choices)
+
+
+func receive_route_selected(route_id: StringName) -> void:
+	selected_route = GameCatalog.get_definition(route_id) as RouteNodeDefinition
+	enemy_director.current_route = selected_route
 	stage_director.wave_index += 1
 	stage_director.state = StageDirector.RunState.PREPARE
 	stage_director.state_time = stage_director.current_wave().prepare_duration_seconds
@@ -281,6 +353,14 @@ func _load_relics() -> Array[RelicDefinition]:
 	var result: Array[RelicDefinition] = []
 	for definition: GameDefinition in GameCatalog.get_definitions_with_tag(&"relic"):
 		result.append(definition as RelicDefinition)
+	return result
+
+
+func _load_routes() -> Array[RouteNodeDefinition]:
+	var result: Array[RouteNodeDefinition] = []
+	for definition: GameDefinition in GameCatalog.get_definitions_with_tag(&"route"):
+		result.append(definition as RouteNodeDefinition)
+	result.sort_custom(func(a: RouteNodeDefinition, b: RouteNodeDefinition) -> bool: return a.id < b.id)
 	return result
 
 
