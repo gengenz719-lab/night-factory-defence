@@ -9,7 +9,7 @@ const RIFLE_TEXTURE: Texture2D = preload("res://assets/art/actors/crew_rifle.png
 const HALF_HEIGHT: float = 23.0
 const CELL_SIZE_PX: float = 64.0
 
-var vehicle: SurvivalVehicle
+var vehicle: VehicleState
 var definition: CharacterDefinition
 var weapon_definition: WeaponDefinition
 var current_level: int = 0
@@ -49,7 +49,7 @@ func _ready() -> void:
 	_update_visuals()
 
 
-func setup(target_vehicle: SurvivalVehicle, character_data: CharacterDefinition, weapon_data: WeaponDefinition) -> void:
+func setup(target_vehicle: VehicleState, character_data: CharacterDefinition, weapon_data: WeaponDefinition) -> void:
 	vehicle = target_vehicle
 	definition = character_data
 	weapon_definition = weapon_data

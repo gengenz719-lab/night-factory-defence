@@ -11,7 +11,7 @@ const CELL_SIZE_PX: float = 64.0
 var definition: EnemyDefinition
 var enemy_type: StringName = &"enemy_walker"
 var side: int = 1
-var vehicle: SurvivalVehicle
+var vehicle: VehicleState
 var player: CrewPlayer
 var max_hp: float = 0.0
 var hp: float = 0.0
@@ -32,7 +32,7 @@ func _ready() -> void:
 	_configure_sprite()
 
 
-func setup(enemy_data: EnemyDefinition, spawn_side: int, target_vehicle: SurvivalVehicle, target_player: CrewPlayer) -> void:
+func setup(enemy_data: EnemyDefinition, spawn_side: int, target_vehicle: VehicleState, target_player: CrewPlayer) -> void:
 	definition = enemy_data
 	enemy_type = definition.id
 	side = spawn_side

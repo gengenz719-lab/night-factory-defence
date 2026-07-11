@@ -111,7 +111,7 @@ func _build_overlay() -> void:
 	box.add_child(end_label)
 
 
-func update_status(wave: int, max_wave: int, state_text: String, time_left: float, player: CrewPlayer, vehicle: SurvivalVehicle, kills: int, relics: Array[RelicDefinition]) -> void:
+func update_status(wave: int, max_wave: int, state_text: String, time_left: float, player: CrewPlayer, vehicle: VehicleState, kills: int, relics: Array[RelicDefinition]) -> void:
 	var hp_text: String = "DOWN" if player.is_downed else "%d / %d" % [roundi(player.hp), roundi(player.max_hp)]
 	player_label.text = "P1  ガンナー\nHP  %s\n撃破  %d" % [hp_text, kills]
 	wave_label.text = "WAVE %d / %d\n%s   %02d:%02d" % [wave, max_wave, state_text, floori(time_left) / 60, floori(time_left) % 60]
