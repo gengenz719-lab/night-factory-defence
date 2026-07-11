@@ -5,14 +5,16 @@ var velocity: Vector2 = Vector2.ZERO
 var damage: float = 0.0
 var lifetime: float = 0.0
 var hit_radius: float = 0.0
+var can_hit: bool = true
 
 
-func setup(origin: Vector2, direction: Vector2, shot_damage: float, weapon: WeaponDefinition) -> void:
+func setup(origin: Vector2, direction: Vector2, shot_damage: float, weapon: WeaponDefinition, authoritative: bool = true) -> void:
 	position = origin
 	velocity = direction.normalized() * weapon.projectile_speed_px
 	damage = shot_damage
 	lifetime = weapon.projectile_lifetime_seconds
 	hit_radius = weapon.projectile_hit_radius_px
+	can_hit = authoritative
 	z_index = 40
 	queue_redraw()
 
@@ -20,12 +22,13 @@ func setup(origin: Vector2, direction: Vector2, shot_damage: float, weapon: Weap
 func _process(delta: float) -> void:
 	position += velocity * delta
 	lifetime -= delta
-	for node: Node in get_tree().get_nodes_in_group(&"enemies"):
-		var enemy: EnemyUnit = node as EnemyUnit
-		if enemy != null and is_instance_valid(enemy) and position.distance_to(enemy.position) < hit_radius:
-			enemy.take_damage(damage)
-			queue_free()
-			return
+	if can_hit:
+		for node: Node in get_tree().get_nodes_in_group(&"enemies"):
+			var enemy: EnemyUnit = node as EnemyUnit
+			if enemy != null and is_instance_valid(enemy) and position.distance_to(enemy.position) < hit_radius:
+				enemy.take_damage(damage)
+				queue_free()
+				return
 	if lifetime <= 0.0 or position.x < -100.0 or position.x > 1700.0 or position.y < -100.0 or position.y > 1000.0:
 		queue_free()
 
